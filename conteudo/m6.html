@@ -1,0 +1,283 @@
+<h1>Módulo 6: Terraform</h1>
+
+<div class="p p0"><span class="tg">Como usar</span><h2>Módulo 6: infraestrutura como código</h2>
+<p>Segue o roadmap de Terraform do roadmap.sh: HCL, providers, recursos, variáveis, state, módulos, ambientes, CI/CD, testes e segurança. Você vai transformar a infraestrutura do módulo 4 em código.</p>
+<ol><li>Instale o Terraform (ou OpenTofu) e configure a AWS CLI</li><li>Abra os tópicos em ordem</li><li>Rode plan antes de todo apply e leia o resultado com calma</li><li>Ao final de cada sessão: terraform destroy</li></ol>
+<h3>Referências gerais</h3><div class="lk"><a href="https://roadmap.sh/terraform"><span>Roadmap</span>Terraform</a><a href="https://developer.hashicorp.com/terraform/tutorials/aws-get-started"><span>Tutorial</span>Get Started: AWS</a><a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs"><span>Documentação</span>Provider AWS</a></div></div>
+
+<div class="p"><span class="tg">6A. Fundamentos · Tópico 1</span><h2>IaC e o papel do Terraform</h2>
+<h3>O que estudar</h3><ul>
+<li><b>O que é IaC</b> e os problemas do ClickOps (sem histórico, sem revisão, ambientes diferentes)</li>
+<li><b>Declarativo vs imperativo</b></li>
+<li><b>Provisionamento vs gerência de configuração:</b> Terraform vs Ansible</li>
+<li><b>Alternativas:</b> CloudFormation, Pulumi, AWS CDK, OpenTofu (fork open source)</li>
+<li><b>Como o Terraform funciona:</b> código → providers → APIs, com state guardando o que existe</li>
+<li><b>Idempotência e convergência</b></li>
+<li><b>Licença BSL e OpenTofu</b> (contexto do mercado)</li></ul>
+<div class="k">Regra prática: depois que um recurso está no Terraform, mudanças só pelo código. Mexer no console gera drift.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://developer.hashicorp.com/terraform/intro"><span>Documentação</span>O que é Terraform</a><a href="https://aws.amazon.com/pt/what-is/iac/"><span>AWS</span>O que é IaC</a><a href="https://opentofu.org/docs/intro/"><span>Documentação</span>OpenTofu</a></div></div>
+
+<div class="p"><span class="tg">6A. Fundamentos · Tópico 2</span><h2>HCL: sintaxe e expressões</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Blocos:</b> terraform, provider, resource, data, variable, output, locals, module</li>
+<li><b>Argumentos e atributos</b> e referências (aws_instance.web.id)</li>
+<li><b>Tipos:</b> string, number, bool, list, set, map, object, tuple</li>
+<li><b>Interpolação</b> "${}" e heredoc</li>
+<li><b>Condicionais:</b> cond ? a : b</li>
+<li><b>Expressões for</b> e splat [*]</li>
+<li><b>Funções:</b> lookup, merge, concat, cidrsubnet, file, templatefile, jsonencode</li>
+<li><b>terraform console</b> para testar expressões</li></ul>
+<div class="c">locals {
+  azs     = ["us-east-1a", "us-east-1b"]
+  subnets = [for i, az in local.azs : cidrsubnet("10.0.0.0/16", 8, i + 1)]
+  tags    = merge(var.tags, { Ambiente = var.ambiente })
+  tipo    = var.ambiente == "prod" ? "t3.small" : "t3.micro"
+}
+# terraform console
+&gt; cidrsubnet("10.0.0.0/16", 8, 1)
+"10.0.1.0/24"</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://developer.hashicorp.com/terraform/language/expressions"><span>Documentação</span>Expressões</a><a href="https://developer.hashicorp.com/terraform/language/functions"><span>Documentação</span>Funções</a><a href="https://developer.hashicorp.com/terraform/language/expressions/types"><span>Documentação</span>Tipos</a></div></div>
+
+<div class="p"><span class="tg">6A. Fundamentos · Tópico 3</span><h2>Providers e versões</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Providers:</b> plugins que falam com as APIs (aws, cloudflare, github, random, tls)</li>
+<li><b>required_providers e required_version</b></li>
+<li><b>Restrições de versão:</b> =, &gt;=, ~&gt; (pessimista)</li>
+<li><b>Lock file</b> .terraform.lock.hcl</li>
+<li><b>Configuração do provider:</b> região, default_tags, assume_role</li>
+<li><b>Aliases</b> para várias regiões ou contas</li>
+<li><b>Autenticação:</b> variáveis de ambiente, perfil, SSO, OIDC no CI</li></ul>
+<div class="c">terraform {
+  required_version = "&gt;= 1.6"
+  required_providers {
+    aws        = { source = "hashicorp/aws", version = "~&gt; 5.0" }
+    cloudflare = { source = "cloudflare/cloudflare", version = "~&gt; 4.0" }
+  }
+}
+provider "aws" {
+  region = "us-east-1"
+  default_tags { tags = { Projeto = "trilha-devops", Gerenciado = "terraform" } }
+}
+provider "aws" {
+  alias  = "virginia"
+  region = "us-east-1"   # certificados do CloudFront
+}</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://developer.hashicorp.com/terraform/language/providers/requirements"><span>Documentação</span>Requisitos de providers</a><a href="https://developer.hashicorp.com/terraform/language/providers/configuration"><span>Documentação</span>Configuração e aliases</a><a href="https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs"><span>Registry</span>Provider Cloudflare</a></div></div>
+
+<div class="p"><span class="tg">6B. Fluxo de trabalho · Tópico 4</span><h2>init, fmt e validate</h2>
+<h3>O que estudar</h3><ul>
+<li><b>terraform init:</b> baixa providers e módulos, configura o backend; -upgrade e -reconfigure</li>
+<li><b>Estrutura de arquivos:</b> main.tf, variables.tf, outputs.tf, providers.tf, versions.tf</li>
+<li><b>terraform fmt</b> (-recursive, -check no CI)</li>
+<li><b>terraform validate</b></li>
+<li><b>TFLint:</b> erros que o validate não pega (tipo de instância inexistente)</li>
+<li><b>O que versionar</b> e o que ignorar no Git</li></ul>
+<div class="c">terraform init
+terraform fmt -recursive
+terraform fmt -check      # no CI
+terraform validate
+tflint --init &amp;&amp; tflint
+# .gitignore
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars      # se tiver valores sensíveis</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://developer.hashicorp.com/terraform/cli/commands/init"><span>Referência</span>terraform init</a><a href="https://developer.hashicorp.com/terraform/language/style"><span>Guia</span>Estilo oficial</a><a href="https://github.com/terraform-linters/tflint"><span>Ferramenta</span>TFLint</a></div></div>
+
+<div class="p"><span class="tg">6B. Fluxo de trabalho · Tópico 5</span><h2>plan, apply e o grafo</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Como ler o plan:</b> + criar, ~ alterar no lugar, - destruir, -/+ substituir</li>
+<li><b>Por que algo é substituído:</b> argumentos que forçam recriação</li>
+<li><b>Plano salvo:</b> plan -out e apply do arquivo</li>
+<li><b>Grafo de dependências:</b> implícitas por referência, explícitas com depends_on</li>
+<li><b>Paralelismo</b> e -target (só em emergência)</li>
+<li><b>-replace</b> para forçar recriação</li>
+<li><b>lifecycle:</b> create_before_destroy, prevent_destroy, ignore_changes</li></ul>
+<div class="c">terraform plan -out=tfplan
+terraform show tfplan
+terraform apply tfplan
+terraform apply -replace=aws_instance.web
+terraform graph | dot -Tpng &gt; grafo.png
+resource "aws_db_instance" "main" {
+  lifecycle { prevent_destroy = true }
+}</div>
+<div class="s">Um -/+ num banco ou volume significa perda de dados. Pare e entenda o motivo antes de aplicar.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://developer.hashicorp.com/terraform/cli/commands/plan"><span>Referência</span>terraform plan</a><a href="https://developer.hashicorp.com/terraform/language/meta-arguments/lifecycle"><span>Documentação</span>lifecycle</a><a href="https://developer.hashicorp.com/terraform/internals/graph"><span>Documentação</span>Grafo de recursos</a></div></div>
+
+<div class="p"><span class="tg">6B. Fluxo de trabalho · Tópico 6</span><h2>destroy, import e drift</h2>
+<h3>O que estudar</h3><ul>
+<li><b>destroy</b> total e com -target</li>
+<li><b>Import:</b> bloco import e geração de código com -generate-config-out</li>
+<li><b>Drift:</b> mudanças fora do Terraform, detectar com plan -refresh-only</li>
+<li><b>Refatorar sem recriar:</b> bloco moved e terraform state mv</li>
+<li><b>removed:</b> deixar de gerenciar sem destruir</li>
+<li><b>Ferramentas:</b> terraformer e former2 para importar infraestrutura existente</li></ul>
+<div class="c">import {
+  to = aws_s3_bucket.logs
+  id = "meu-bucket-de-logs"
+}
+terraform plan -generate-config-out=gerado.tf
+terraform plan -refresh-only
+moved {
+  from = aws_instance.web
+  to   = module.app.aws_instance.web
+}</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://developer.hashicorp.com/terraform/language/import"><span>Documentação</span>Import</a><a href="https://developer.hashicorp.com/terraform/language/modules/develop/refactoring"><span>Documentação</span>Refatoração com moved</a><a href="https://developer.hashicorp.com/terraform/tutorials/state/resource-drift"><span>Tutorial</span>Gerenciando drift</a></div></div>
+
+<div class="p"><span class="tg">6C. Organização · Tópico 7</span><h2>Variables, outputs e locals</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Variáveis:</b> type, default, description, validation, sensitive, nullable</li>
+<li><b>Precedência:</b> -var, *.auto.tfvars, terraform.tfvars, TF_VAR_*, default</li>
+<li><b>Outputs:</b> expor IDs e endpoints, sensitive, terraform output -json</li>
+<li><b>Locals:</b> evitar repetição, nomes e tags padronizados</li>
+<li><b>Tipos complexos:</b> object e map(object) com optional()</li></ul>
+<div class="c">variable "instancias" {
+  type = map(object({
+    tipo = string
+    disco = optional(number, 20)
+  }))
+}
+variable "ambiente" {
+  type = string
+  validation {
+    condition     = contains(["dev", "staging", "prod"], var.ambiente)
+    error_message = "Use dev, staging ou prod."
+  }
+}
+output "alb_dns" { value = aws_lb.app.dns_name }
+export TF_VAR_ambiente=dev</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://developer.hashicorp.com/terraform/language/values/variables"><span>Documentação</span>Variables</a><a href="https://developer.hashicorp.com/terraform/language/values/outputs"><span>Documentação</span>Outputs</a><a href="https://developer.hashicorp.com/terraform/language/values/locals"><span>Documentação</span>Locals</a></div></div>
+
+<div class="p"><span class="tg">6C. Organização · Tópico 8</span><h2>Meta-argumentos e data</h2>
+<h3>O que estudar</h3><ul>
+<li><b>count</b> e count.index, recursos condicionais (count = var.criar ? 1 : 0)</li>
+<li><b>for_each</b> com map ou set, each.key e each.value</li>
+<li><b>Por que preferir for_each</b> (remover item do meio não recria os outros)</li>
+<li><b>dynamic blocks</b> para regras de Security Group</li>
+<li><b>depends_on</b> explícito</li>
+<li><b>Data sources:</b> AMI mais recente, zonas, conta atual, recursos criados fora</li>
+<li><b>Provisioners:</b> por que evitar (prefira user data ou imagens prontas)</li></ul>
+<div class="c">data "aws_availability_zones" "disp" { state = "available" }
+resource "aws_subnet" "publica" {
+  for_each          = toset(slice(data.aws_availability_zones.disp.names, 0, 2))
+  vpc_id            = aws_vpc.main.id
+  availability_zone = each.key
+  cidr_block        = cidrsubnet("10.0.0.0/16", 8, index(data.aws_availability_zones.disp.names, each.key) + 1)
+}
+dynamic "ingress" {
+  for_each = var.portas
+  content {
+    from_port = ingress.value
+    to_port   = ingress.value
+    protocol  = "tcp"
+  }
+}</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://developer.hashicorp.com/terraform/language/meta-arguments/for_each"><span>Documentação</span>for_each</a><a href="https://developer.hashicorp.com/terraform/language/expressions/dynamic-blocks"><span>Documentação</span>Dynamic blocks</a><a href="https://developer.hashicorp.com/terraform/language/data-sources"><span>Documentação</span>Data sources</a></div></div>
+
+<div class="p"><span class="tg">6C. Organização · Tópico 9</span><h2>Módulos</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Root module vs child modules</b></li>
+<li><b>Estrutura:</b> main.tf, variables.tf, outputs.tf, README</li>
+<li><b>Fontes:</b> caminho local, Git com ref, Terraform Registry com versão</li>
+<li><b>Design:</b> interfaces pequenas, sem provider dentro do módulo, outputs úteis</li>
+<li><b>Módulos da comunidade:</b> terraform-aws-modules (vpc, ec2, rds, alb)</li>
+<li><b>Composição:</b> um módulo de ambiente chamando vpc, app e dados</li>
+<li><b>Documentação automática</b> com terraform-docs</li></ul>
+<div class="c">infra/
+├─ modules/
+│  ├─ network/   (VPC, subnets, rotas)
+│  ├─ app/       (ALB, EC2 ou ECS, SGs)
+│  └─ data/      (RDS, secrets)
+└─ envs/
+   ├─ dev/main.tf
+   └─ prod/main.tf
+
+module "network" {
+  source   = "../../modules/network"
+  cidr     = "10.0.0.0/16"
+  ambiente = "prod"
+}
+module "app" {
+  source     = "../../modules/app"
+  vpc_id     = module.network.vpc_id
+  subnet_ids = module.network.private_subnet_ids
+}</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://developer.hashicorp.com/terraform/language/modules/develop"><span>Documentação</span>Criando módulos</a><a href="https://registry.terraform.io/namespaces/terraform-aws-modules"><span>Registry</span>terraform-aws-modules</a><a href="https://terraform-docs.io/"><span>Ferramenta</span>terraform-docs</a></div></div>
+
+<div class="p"><span class="tg">6D. State e escala · Tópico 10</span><h2>O arquivo de state</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Para que serve:</b> mapear código para recursos reais, guardar metadados e dependências, performance</li>
+<li><b>Formato JSON</b> e por que nunca editar à mão</li>
+<li><b>Comandos:</b> state list, show, mv, rm, pull, push</li>
+<li><b>Dados sensíveis</b> em texto puro no state</li>
+<li><b>Refresh</b> e reconciliação com a realidade</li>
+<li><b>Recuperação:</b> versionamento do bucket para voltar uma versão</li></ul>
+<div class="c">terraform state list
+terraform state show module.app.aws_lb.this
+terraform state mv aws_instance.web aws_instance.api
+terraform state rm aws_s3_bucket.legado
+terraform state pull &gt; backup.tfstate</div>
+<div class="s">O state pode conter senhas de banco e chaves. Trate o arquivo como um segredo.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://developer.hashicorp.com/terraform/language/state"><span>Documentação</span>State</a><a href="https://developer.hashicorp.com/terraform/cli/commands/state"><span>Referência</span>terraform state</a><a href="https://developer.hashicorp.com/terraform/language/state/sensitive-data"><span>Documentação</span>Dados sensíveis</a></div></div>
+
+<div class="p"><span class="tg">6D. State e escala · Tópico 11</span><h2>Backend remoto e lock</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Backend local vs remoto</b></li>
+<li><b>Backend S3:</b> bucket versionado e criptografado, key por ambiente</li>
+<li><b>Lock:</b> use_lockfile no S3 (versões recentes) ou tabela DynamoDB (forma antiga)</li>
+<li><b>Bootstrap:</b> criar o bucket do state à parte</li>
+<li><b>Migrar state:</b> init -migrate-state</li>
+<li><b>Ler outputs de outro state:</b> terraform_remote_state</li>
+<li><b>HCP Terraform</b> (Terraform Cloud) como alternativa gerenciada</li></ul>
+<div class="c">terraform {
+  backend "s3" {
+    bucket       = "trilha-tfstate-123456789012"
+    key          = "prod/app.tfstate"
+    region       = "us-east-1"
+    encrypt      = true
+    use_lockfile = true
+  }
+}
+terraform init -migrate-state
+terraform force-unlock LOCK_ID   # só se o lock travou</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://developer.hashicorp.com/terraform/language/backend/s3"><span>Documentação</span>Backend S3</a><a href="https://developer.hashicorp.com/terraform/language/state/locking"><span>Documentação</span>Locking</a><a href="https://developer.hashicorp.com/terraform/cloud-docs"><span>Documentação</span>HCP Terraform</a></div></div>
+
+<div class="p"><span class="tg">6D. State e escala · Tópico 12</span><h2>Ambientes, CI e testes</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Separar ambientes:</b> pastas por ambiente (recomendado) vs workspaces</li>
+<li><b>Terragrunt</b> para reduzir repetição (conceito)</li>
+<li><b>Terraform no CI:</b> fmt -check, validate, tflint, scan e plan no PR; apply após merge com aprovação</li>
+<li><b>Plan como comentário no PR</b></li>
+<li><b>Atlantis</b> e HCP Terraform para fluxo via PR</li>
+<li><b>Testes:</b> terraform test (.tftest.hcl), check blocks, Terratest</li>
+<li><b>Custos no PR</b> com Infracost</li></ul>
+<div class="c"># tests/rede.tftest.hcl
+run "subnets_criadas" {
+  command = plan
+  assert {
+    condition     = length(module.network.private_subnet_ids) == 2
+    error_message = "Esperava 2 subnets privadas"
+  }
+}
+terraform test
+infracost breakdown --path .</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://developer.hashicorp.com/terraform/tutorials/automation/github-actions"><span>Tutorial</span>Terraform com GitHub Actions</a><a href="https://developer.hashicorp.com/terraform/language/tests"><span>Documentação</span>terraform test</a><a href="https://www.infracost.io/docs/"><span>Ferramenta</span>Infracost</a></div></div>
+
+<div class="p"><span class="tg">DevSecOps</span><h2>IaC seguro</h2>
+<h3>O que estudar e aplicar</h3><ol>
+<li><b>State protegido:</b> bucket privado, criptografado com KMS, versionado e com acesso restrito</li>
+<li><b>Sem segredos no código:</b> sensitive = true, valores vindos do Secrets Manager via data source, ou gerados com random_password</li>
+<li><b>Scanners de IaC:</b> Checkov, Trivy config, tfsec (agora no Trivy)</li>
+<li><b>Policy as code:</b> OPA/Conftest ou Sentinel para regras da empresa</li>
+<li><b>Permissões do CI:</b> role de plan só leitura, role de apply separada e com aprovação</li>
+<li><b>Versões fixadas</b> de providers e módulos, lock file versionado</li>
+<li><b>Padrões seguros nos módulos:</b> criptografia ligada, sem acesso público, logs ativos</li></ol>
+<div class="c">checkov -d infra/ --framework terraform
+trivy config --severity HIGH,CRITICAL infra/
+conftest test tfplan.json -p policy/
+resource "random_password" "db" { length = 32 }</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.checkov.io/"><span>Ferramenta</span>Checkov</a><a href="https://trivy.dev/latest/docs/scanner/misconfiguration/"><span>Ferramenta</span>Trivy para IaC</a><a href="https://www.conftest.dev/"><span>Ferramenta</span>Conftest (OPA)</a></div></div>
+
+<div class="p"><span class="tg">Projeto prático</span><h2>A infraestrutura do módulo 4 em código</h2>
+<ol><li>Bootstrap: bucket do state criado com Terraform numa pasta à parte</li><li>Módulos network, app e data com README gerado pelo terraform-docs</li><li>Ambientes dev e prod em pastas separadas, cada um com seu state</li><li>Senha do banco gerada com random_password e guardada no Secrets Manager</li><li>Opcional: registros DNS na Cloudflare pelo provider cloudflare</li><li>Pipeline: fmt, validate, tflint, Checkov e plan no PR; apply com aprovação após merge, via OIDC</li><li>Um terraform test validando a rede</li><li>Prova final: destroy e apply de novo, tudo volta igual</li></ol>
+<h3>Para se inspirar</h3><div class="lk"><a href="https://developer.hashicorp.com/terraform/tutorials"><span>Tutoriais</span>HashiCorp Tutorials</a><a href="https://roadmap.sh/projects"><span>Projetos</span>Projetos DevOps</a><a href="https://developer.hashicorp.com/certifications/infrastructure-automation"><span>Certificação</span>Terraform Associate</a></div></div>
