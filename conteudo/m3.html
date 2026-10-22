@@ -1,0 +1,252 @@
+<h1>Módulo 3: Docker</h1>
+
+<div class="p p0"><span class="tg">Como usar</span><h2>Módulo 3: empacote tudo em containers</h2>
+<p>Este módulo segue o roadmap de Docker do roadmap.sh: fundamentos de containers, imagens, dados, redes, Compose, segurança e um passo em direção à orquestração.</p>
+<ol><li>Instale o Docker Engine (Linux) ou Docker Desktop</li><li>Abra os tópicos em ordem e siga a lista "O que estudar"</li><li>Rode cada exemplo e inspecione o resultado com docker inspect</li></ol>
+<h3>Referências gerais</h3><div class="lk"><a href="https://roadmap.sh/docker"><span>Roadmap</span>Docker</a><a href="https://docs.docker.com/get-started/"><span>Documentação</span>Docker Get Started</a><a href="https://labs.play-with-docker.com/"><span>Prática</span>Play with Docker</a></div></div>
+
+<div class="p"><span class="tg">3A. Conceitos · Tópico 1</span><h2>Containers vs VMs</h2>
+<p>Uma VM virtualiza hardware e roda um sistema operacional completo. Um container é um processo isolado que compartilha o kernel do host, por isso sobe em segundos e ocupa megabytes.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Problema que containers resolvem:</b> "na minha máquina funciona", dependências conflitantes, ambientes diferentes</li>
+<li><b>Bare metal vs VMs vs containers:</b> isolamento, desempenho, densidade</li>
+<li><b>Tecnologias do kernel:</b> namespaces (pid, net, mnt, uts, user) isolam; cgroups limitam CPU e memória; union filesystem (overlay2) empilha camadas</li>
+<li><b>Imagem vs container:</b> modelo somente leitura vs instância em execução com camada gravável</li>
+<li><b>Padrão OCI</b> e alternativas: Podman, containerd</li></ul>
+<div class="k">Container não é segurança total: o kernel é compartilhado. Por isso hardening de containers importa (veja DevSecOps).</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.docker.com/resources/what-container/"><span>Artigo</span>O que é um container</a><a href="https://aws.amazon.com/pt/compare/the-difference-between-containers-and-virtual-machines/"><span>AWS</span>Containers vs VMs</a><a href="https://opencontainers.org/"><span>Padrão</span>Open Container Initiative</a></div></div>
+
+<div class="p"><span class="tg">3A. Conceitos · Tópico 2</span><h2>Como o Docker funciona</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Arquitetura cliente-servidor:</b> docker CLI fala com o daemon dockerd via API (socket /var/run/docker.sock)</li>
+<li><b>Componentes:</b> dockerd, containerd, runc</li>
+<li><b>Objetos:</b> imagens, containers, volumes, redes</li>
+<li><b>Registry:</b> Docker Hub, Amazon ECR, GitHub Container Registry</li>
+<li><b>Instalação:</b> Docker Engine no Linux, Docker Desktop no Windows e macOS</li>
+<li><b>Modo rootless</b> (conceito)</li></ul>
+<div class="c">curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER     # depois faça logout e login
+docker version     # cliente e servidor
+docker info        # driver de storage, nº de containers
+docker run --rm hello-world</div>
+<div class="s">Quem acessa o docker.sock tem poder de root no host. Nunca monte o socket dentro de containers sem necessidade real.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.docker.com/get-started/docker-overview/"><span>Documentação</span>Docker overview</a><a href="https://docs.docker.com/engine/install/"><span>Documentação</span>Instalar o Docker Engine</a><a href="https://docs.docker.com/engine/security/rootless/"><span>Documentação</span>Modo rootless</a></div></div>
+
+<div class="p"><span class="tg">3A. Conceitos · Tópico 3</span><h2>Ciclo de vida e CLI</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Estados:</b> created, running, paused, exited</li>
+<li><b>Executar:</b> run com -d, --name, -p, -e, --rm, -it</li>
+<li><b>Inspecionar:</b> ps, logs, inspect, stats, top</li>
+<li><b>Entrar no container:</b> exec -it sh ou bash</li>
+<li><b>Controlar:</b> stop, start, restart, kill, rm</li>
+<li><b>Políticas de restart:</b> no, on-failure, unless-stopped, always</li>
+<li><b>Limpeza:</b> system df, system prune, image prune</li></ul>
+<div class="c">docker run -d --name web -p 8080:80 --restart unless-stopped nginx:1.27
+docker ps ; docker ps -a
+docker logs -f --tail 50 web
+docker exec -it web sh
+docker inspect web | jq '.[0].NetworkSettings.IPAddress'
+docker stats --no-stream
+docker stop web &amp;&amp; docker rm web
+docker system df ; docker system prune</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.docker.com/reference/cli/docker/"><span>Referência</span>Docker CLI</a><a href="https://docs.docker.com/engine/containers/start-containers-automatically/"><span>Documentação</span>Políticas de restart</a><a href="https://docs.docker.com/get-started/docker_cheatsheet.pdf"><span>Cola</span>Docker cheat sheet</a></div></div>
+
+<div class="p"><span class="tg">3B. Imagens · Tópico 4</span><h2>Dockerfile</h2>
+<p>A receita da imagem. Cada instrução é um passo do build.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Instruções:</b> FROM, WORKDIR, COPY vs ADD, RUN, ENV, ARG, EXPOSE, USER, CMD vs ENTRYPOINT, HEALTHCHECK, LABEL</li>
+<li><b>Contexto de build</b> e o arquivo .dockerignore</li>
+<li><b>Forma exec vs shell:</b> CMD ["node","app.js"] vs CMD node app.js (sinais e PID 1)</li>
+<li><b>ARG em build vs ENV em runtime</b></li>
+<li><b>docker build</b> com -t, -f, --build-arg, --no-cache</li>
+<li><b>BuildKit e buildx</b> para builds multiplataforma (amd64 e arm64)</li></ul>
+<div class="c">FROM python:3.12-slim
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+RUN useradd -r app &amp;&amp; chown -R app /app
+USER app
+EXPOSE 8000
+HEALTHCHECK CMD python -c "import urllib.request;urllib.request.urlopen('http://localhost:8000/health')"
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0"]</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.docker.com/reference/dockerfile/"><span>Referência</span>Dockerfile reference</a><a href="https://docs.docker.com/build/building/best-practices/"><span>Guia</span>Boas práticas de build</a><a href="https://docs.docker.com/build/building/multi-platform/"><span>Documentação</span>Builds multiplataforma</a></div></div>
+
+<div class="p"><span class="tg">3B. Imagens · Tópico 5</span><h2>Camadas, cache e tamanho</h2>
+<p>Imagens menores sobem mais rápido, custam menos e têm menos vulnerabilidades.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Camadas:</b> cada RUN, COPY e ADD cria uma camada imutável</li>
+<li><b>Cache:</b> ordem das instruções (dependências antes do código)</li>
+<li><b>Imagens base:</b> full vs slim vs alpine vs distroless vs scratch</li>
+<li><b>Multi-stage builds:</b> compilar numa etapa, copiar só o binário para a final</li>
+<li><b>Limpeza no mesmo RUN:</b> apt-get clean, rm -rf /var/lib/apt/lists/*</li>
+<li><b>Analisar:</b> docker history e a ferramenta dive</li></ul>
+<div class="c">FROM node:20-alpine AS build
+WORKDIR /src
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build &amp;&amp; npm prune --omit=dev
+
+FROM gcr.io/distroless/nodejs20-debian12
+COPY --from=build /src/dist /app/dist
+COPY --from=build /src/node_modules /app/node_modules
+USER nonroot
+CMD ["/app/dist/index.js"]</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.docker.com/build/building/multi-stage/"><span>Documentação</span>Multi-stage builds</a><a href="https://docs.docker.com/build/cache/"><span>Documentação</span>Build cache</a><a href="https://github.com/wagoodman/dive"><span>Ferramenta</span>dive</a></div></div>
+
+<div class="p"><span class="tg">3B. Imagens · Tópico 6</span><h2>Registries e tags</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Nome completo:</b> registry/namespace/repositório:tag</li>
+<li><b>Registries:</b> Docker Hub, Amazon ECR, GitHub Container Registry (ghcr.io), privados</li>
+<li><b>Estratégia de tags:</b> versão semântica (1.4.2), SHA do commit, por que evitar latest em produção</li>
+<li><b>Digest:</b> referência imutável @sha256:...</li>
+<li><b>Login, push, pull</b> e credential helpers</li>
+<li><b>Retenção:</b> políticas de lifecycle no ECR</li></ul>
+<div class="c">docker tag minha-api:dev ghcr.io/voce/minha-api:1.0.0
+echo $GH_TOKEN | docker login ghcr.io -u voce --password-stdin
+docker push ghcr.io/voce/minha-api:1.0.0
+aws ecr get-login-password | docker login --username AWS \
+  --password-stdin 123456789012.dkr.ecr.us-east-1.amazonaws.com
+docker pull nginx@sha256:abc...   # versão exata</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.docker.com/docker-hub/"><span>Documentação</span>Docker Hub</a><a href="https://docs.aws.amazon.com/pt_br/AmazonECR/latest/userguide/what-is-ecr.html"><span>AWS</span>Amazon ECR</a><a href="https://docs.github.com/pt/packages/working-with-a-github-packages-registry/working-with-the-container-registry"><span>GitHub</span>Container Registry</a></div></div>
+
+<div class="p"><span class="tg">3C. Dados e rede · Tópico 7</span><h2>Volumes e persistência</h2>
+<p>Containers são descartáveis: tudo escrito na camada gravável some ao remover o container.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Volumes nomeados:</b> gerenciados pelo Docker, ideais para bancos</li>
+<li><b>Bind mounts:</b> pasta do host, ideal para desenvolvimento</li>
+<li><b>tmpfs:</b> dados em memória</li>
+<li><b>Somente leitura:</b> :ro e --read-only</li>
+<li><b>Backup e restore</b> de volumes</li>
+<li><b>Permissões</b> entre UID do container e do host</li></ul>
+<div class="c">docker volume create pgdata
+docker run -d --name db -v pgdata:/var/lib/postgresql/data \
+  -e POSTGRES_PASSWORD_FILE=/run/secrets/pg postgres:16
+docker run -v "$(pwd)/src:/app/src:ro" minha-api:dev
+# backup do volume
+docker run --rm -v pgdata:/dados -v "$(pwd)":/bkp alpine \
+  tar czf /bkp/pgdata.tgz -C /dados .</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.docker.com/engine/storage/volumes/"><span>Documentação</span>Volumes</a><a href="https://docs.docker.com/engine/storage/bind-mounts/"><span>Documentação</span>Bind mounts</a><a href="https://docs.docker.com/engine/storage/tmpfs/"><span>Documentação</span>tmpfs</a></div></div>
+
+<div class="p"><span class="tg">3C. Dados e rede · Tópico 8</span><h2>Redes do Docker</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Drivers:</b> bridge (padrão), host, none, overlay (Swarm)</li>
+<li><b>Rede bridge customizada:</b> DNS interno, containers se acham pelo nome</li>
+<li><b>Publicação de portas:</b> -p host:container e o bind em 127.0.0.1</li>
+<li><b>Isolamento:</b> separar front e back em redes diferentes</li>
+<li><b>Como o Docker mexe no iptables</b> e por que isso pode furar o ufw</li>
+<li><b>Proxy reverso</b> com Nginx ou Traefik na frente dos containers</li></ul>
+<div class="c">docker network create back
+docker run -d --name db --network back postgres:16
+docker run -d --name api --network back -p 127.0.0.1:8000:8000 minha-api
+docker exec api getent hosts db     # resolve pelo nome
+docker network inspect back</div>
+<div class="s">Portas publicadas com -p ignoram regras do ufw. Para serviços internos, publique em 127.0.0.1 ou não publique.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.docker.com/engine/network/"><span>Documentação</span>Networking overview</a><a href="https://docs.docker.com/engine/network/packet-filtering-firewalls/"><span>Documentação</span>Docker e firewalls</a><a href="https://doc.traefik.io/traefik/"><span>Ferramenta</span>Traefik</a></div></div>
+
+<div class="p"><span class="tg">3C. Dados e rede · Tópico 9</span><h2>Configuração e recursos</h2>
+<h3>O que estudar</h3><ul>
+<li><b>12 Factor:</b> configuração por variáveis de ambiente, mesma imagem em todos os ambientes</li>
+<li><b>-e, --env-file</b> e precedência</li>
+<li><b>Segredos:</b> arquivos montados (/run/secrets) em vez de variáveis quando possível</li>
+<li><b>Limites:</b> --memory, --cpus, --pids-limit</li>
+<li><b>OOM:</b> o que acontece quando o container estoura a memória</li>
+<li><b>Sinais e graceful shutdown:</b> SIGTERM, --stop-timeout, init (--init ou tini)</li></ul>
+<div class="c">docker run -d --env-file .env \
+  --memory 512m --cpus 1 --pids-limit 200 \
+  --init --stop-timeout 20 minha-api:1.0.0
+docker inspect --format '{{.State.OOMKilled}}' api</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://12factor.net/pt_br/"><span>Guia</span>The Twelve-Factor App</a><a href="https://docs.docker.com/engine/containers/resource_constraints/"><span>Documentação</span>Limites de recursos</a><a href="https://docs.docker.com/compose/how-tos/use-secrets/"><span>Documentação</span>Segredos no Compose</a></div></div>
+
+<div class="p"><span class="tg">3D. Compose e operação · Tópico 10</span><h2>compose.yaml</h2>
+<p>O Compose descreve uma aplicação de vários containers como código.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Estrutura:</b> services, networks, volumes, secrets</li>
+<li><b>build vs image</b></li>
+<li><b>ports, environment, env_file</b> e interpolação ${VAR}</li>
+<li><b>Override files:</b> compose.override.yaml para dev</li>
+<li><b>Profiles</b> para serviços opcionais</li></ul>
+<div class="c">services:
+  proxy:
+    image: nginx:1.27-alpine
+    ports: ["80:80"]
+    volumes: ["./nginx.conf:/etc/nginx/conf.d/default.conf:ro"]
+    networks: [front]
+  api:
+    build: .
+    env_file: .env
+    networks: [front, back]
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_pass
+    secrets: [db_pass]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    networks: [back]
+networks: { front: {}, back: {} }
+volumes: { pgdata: {} }
+secrets:
+  db_pass: { file: ./secrets/db_pass.txt }</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.docker.com/reference/compose-file/"><span>Referência</span>Compose file</a><a href="https://docs.docker.com/compose/how-tos/multiple-compose-files/merge/"><span>Documentação</span>Arquivos de override</a><a href="https://github.com/docker/awesome-compose"><span>Exemplos</span>awesome-compose</a></div></div>
+
+<div class="p"><span class="tg">3D. Compose e operação · Tópico 11</span><h2>Saúde e dependências</h2>
+<h3>O que estudar</h3><ul>
+<li><b>healthcheck:</b> test, interval, timeout, retries, start_period</li>
+<li><b>depends_on com condition:</b> service_healthy e service_completed_successfully</li>
+<li><b>restart</b> no Compose</li>
+<li><b>Containers de migração</b> que rodam e terminam antes da API</li>
+<li><b>Comandos:</b> up -d --build, ps, logs -f, exec, down, down -v (apaga volumes!)</li></ul>
+<div class="c">  db:
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+  migrate:
+    build: .
+    command: ["npm", "run", "migrate"]
+    depends_on: { db: { condition: service_healthy } }
+  api:
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.docker.com/compose/how-tos/startup-order/"><span>Documentação</span>Ordem de inicialização</a><a href="https://docs.docker.com/reference/cli/docker/compose/"><span>Referência</span>docker compose CLI</a><a href="https://docs.docker.com/reference/dockerfile/#healthcheck"><span>Referência</span>HEALTHCHECK</a></div></div>
+
+<div class="p"><span class="tg">3D. Compose e operação · Tópico 12</span><h2>Logs, debug e orquestração</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Logs:</b> stdout e stderr, drivers json-file, awslogs, rotação com max-size</li>
+<li><b>Debug:</b> logs, inspect, exec, docker events, container de debug com a mesma rede</li>
+<li><b>Problemas comuns:</b> container sai na hora (PID 1 terminou), porta ocupada, permissão em volume, OOM</li>
+<li><b>Desenvolvimento:</b> hot reload com bind mount e compose watch</li>
+<li><b>Orquestração (visão geral):</b> por que Kubernetes, ECS e Docker Swarm existem: escala, autocura, rolling update</li></ul>
+<div class="c">docker run --log-opt max-size=10m --log-opt max-file=3 ...
+docker logs api 2&gt;&amp;1 | grep -i error
+docker events --since 10m
+docker run --rm -it --network container:api nicolaka/netshoot
+docker compose watch</div>
+<div class="k">Você vai usar o driver awslogs no projeto final para mandar os logs ao CloudWatch.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.docker.com/engine/logging/configure/"><span>Documentação</span>Configurar logs</a><a href="https://github.com/nicolaka/netshoot"><span>Ferramenta</span>netshoot: debug de rede</a><a href="https://roadmap.sh/kubernetes"><span>Roadmap</span>Kubernetes (próximo passo)</a></div></div>
+
+<div class="p"><span class="tg">DevSecOps</span><h2>Containers seguros</h2>
+<h3>O que estudar e aplicar</h3><ol>
+<li><b>Imagem base confiável:</b> oficial, mínima, com tag fixa ou digest, atualizada com frequência</li>
+<li><b>Usuário não root</b> e --cap-drop ALL, adicionando só o necessário</li>
+<li><b>Sistema de arquivos somente leitura</b> (--read-only + tmpfs)</li>
+<li><b>no-new-privileges</b> e nunca --privileged</li>
+<li><b>Scan de vulnerabilidades</b> (Trivy, Docker Scout) e falhar o build em CRITICAL</li>
+<li><b>Lint do Dockerfile</b> com hadolint</li>
+<li><b>SBOM:</b> lista de componentes da imagem</li>
+<li><b>Assinatura de imagens</b> com cosign (conceito)</li>
+<li><b>Segredos:</b> nunca em ENV, ARG ou COPY; use secrets do Compose ou do orquestrador</li>
+<li><b>CIS Docker Benchmark</b> com docker-bench-security</li></ol>
+<div class="c">hadolint Dockerfile
+trivy image --severity HIGH,CRITICAL --exit-code 1 minha-api:1.0.0
+trivy image --format cyclonedx -o sbom.json minha-api:1.0.0
+docker run --read-only --tmpfs /tmp --cap-drop ALL \
+  --security-opt no-new-privileges minha-api:1.0.0</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html"><span>OWASP</span>Docker Security Cheat Sheet</a><a href="https://trivy.dev/"><span>Ferramenta</span>Trivy</a><a href="https://github.com/docker/docker-bench-security"><span>Ferramenta</span>docker-bench-security</a></div></div>
+
+<div class="p"><span class="tg">Projeto prático</span><h2>Aplicação completa em containers</h2>
+<ol><li>API simples (Node, Python ou Go) com /health e logs em JSON</li><li>Dockerfile multi-stage, imagem final distroless ou slim, usuário não root, abaixo de 150 MB</li><li>compose.yaml com Nginx (proxy), API, PostgreSQL e um serviço de migração</li><li>Redes front e back separadas, banco sem porta publicada</li><li>Healthchecks e depends_on com condição</li><li>Senha do banco via secrets, nada no .env versionado</li><li>hadolint e Trivy sem falhas críticas, SBOM gerado</li><li>Imagem publicada no GHCR ou Docker Hub com tag semântica</li></ol>
+<h3>Para se inspirar</h3><div class="lk"><a href="https://roadmap.sh/projects"><span>Projetos</span>Projetos DevOps (roadmap.sh)</a><a href="https://docs.docker.com/guides/"><span>Guias</span>Docker guides por linguagem</a><a href="https://github.com/docker/awesome-compose"><span>Exemplos</span>awesome-compose</a></div></div>
