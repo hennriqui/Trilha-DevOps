@@ -1,0 +1,226 @@
+<h1>Módulo 4: AWS</h1>
+
+<div class="p p0"><span class="tg">Como usar</span><h2>Módulo 4: a nuvem AWS</h2>
+<p>Segue o roadmap de AWS do roadmap.sh: fundamentos, IAM, VPC, EC2, S3, RDS, balanceamento, CloudWatch e custos. É onde a aplicação do módulo 3 vai rodar.</p>
+<ol><li>Crie a conta e configure um alerta de orçamento antes de tudo</li><li>Abra os tópicos em ordem</li><li>Faça cada exercício pelo console e depois repita pela AWS CLI</li><li>Desligue recursos ao final de cada sessão</li></ol>
+<div class="k">Use sempre a mesma região nos estudos (por exemplo us-east-1) para não perder recursos esquecidos em outra.</div>
+<h3>Referências gerais</h3><div class="lk"><a href="https://roadmap.sh/aws"><span>Roadmap</span>AWS</a><a href="https://skillbuilder.aws/"><span>Cursos</span>AWS Skill Builder (gratuito)</a><a href="https://docs.aws.amazon.com/pt_br/"><span>Documentação</span>AWS em português</a></div></div>
+
+<div class="p"><span class="tg">4A. Base e IAM · Tópico 1</span><h2>Fundamentos da nuvem AWS</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Modelos de serviço:</b> IaaS, PaaS, SaaS e serverless</li>
+<li><b>Infraestrutura global:</b> regiões, Availability Zones, edge locations</li>
+<li><b>Modelo de responsabilidade compartilhada</b></li>
+<li><b>Modelo de preços:</b> sob demanda, Savings Plans, Spot, Free Tier</li>
+<li><b>Formas de acesso:</b> console, AWS CLI, SDKs, CloudShell</li>
+<li><b>ARN:</b> o identificador único de cada recurso</li>
+<li><b>Proteção da conta:</b> MFA no root, contato alternativo, AWS Budgets</li></ul>
+<div class="c">aws configure sso          # recomendado
+aws sts get-caller-identity
+aws ec2 describe-availability-zones --region us-east-1 --output table
+# arn:aws:s3:::meu-bucket
+# arn:aws:iam::123456789012:role/gh-deploy</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://aws.amazon.com/pt/about-aws/global-infrastructure/regions_az/"><span>AWS</span>Regiões e zonas</a><a href="https://aws.amazon.com/pt/compliance/shared-responsibility-model/"><span>AWS</span>Responsabilidade compartilhada</a><a href="https://aws.amazon.com/pt/certification/certified-cloud-practitioner/"><span>Certificação</span>Cloud Practitioner</a></div></div>
+
+<div class="p"><span class="tg">4A. Base e IAM · Tópico 2</span><h2>IAM: identidades</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Usuário root:</b> só para tarefas de conta, protegido com MFA</li>
+<li><b>Usuários e grupos IAM:</b> permissões por grupo, não por usuário</li>
+<li><b>Roles:</b> identidades temporárias assumidas por serviços, pessoas ou sistemas externos</li>
+<li><b>Instance profile:</b> role da EC2</li>
+<li><b>IAM Identity Center (SSO):</b> o jeito moderno de dar acesso a pessoas</li>
+<li><b>Credenciais:</b> senha, access keys de longa duração vs credenciais temporárias via STS</li>
+<li><b>Federação e OIDC</b> (usado pelo GitHub Actions no módulo 5)</li>
+<li><b>AWS Organizations:</b> várias contas (dev, prod) e SCPs (conceito)</li></ul>
+<div class="c">aws iam create-group --group-name devs
+aws iam attach-group-policy --group-name devs \
+  --policy-arn arn:aws:iam::aws:policy/ReadOnlyAccess
+aws sts assume-role --role-arn arn:aws:iam::123:role/admin \
+  --role-session-name ramon</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.aws.amazon.com/pt_br/IAM/latest/UserGuide/id.html"><span>AWS</span>Identidades do IAM</a><a href="https://docs.aws.amazon.com/pt_br/singlesignon/latest/userguide/what-is.html"><span>AWS</span>IAM Identity Center</a><a href="https://docs.aws.amazon.com/pt_br/IAM/latest/UserGuide/id_roles.html"><span>AWS</span>Roles</a></div></div>
+
+<div class="p"><span class="tg">4A. Base e IAM · Tópico 3</span><h2>IAM: policies e acesso</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Estrutura:</b> Version, Statement, Effect, Action, Resource, Condition</li>
+<li><b>Tipos:</b> gerenciadas pela AWS, gerenciadas pelo cliente, inline</li>
+<li><b>Identity-based vs resource-based</b> (bucket policy, trust policy de role)</li>
+<li><b>Avaliação:</b> negado por padrão, Allow explícito, Deny explícito sempre vence</li>
+<li><b>Conditions:</b> aws:SourceIp, aws:MultiFactorAuthPresent, tags</li>
+<li><b>Ferramentas:</b> Policy Simulator, IAM Access Analyzer, last accessed</li></ul>
+<div class="c">{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": ["s3:GetObject", "s3:PutObject"],
+    "Resource": "arn:aws:s3:::app-uploads/*",
+    "Condition": {"Bool": {"aws:SecureTransport": "true"}}
+  }]
+}</div>
+<div class="s">Comece pelo mínimo e libere conforme a necessidade. "Action": "*" com "Resource": "*" é praticamente admin.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.aws.amazon.com/pt_br/IAM/latest/UserGuide/access_policies.html"><span>AWS</span>Policies e permissões</a><a href="https://docs.aws.amazon.com/pt_br/IAM/latest/UserGuide/reference_policies_evaluation-logic.html"><span>AWS</span>Lógica de avaliação</a><a href="https://docs.aws.amazon.com/pt_br/IAM/latest/UserGuide/best-practices.html"><span>AWS</span>Boas práticas de IAM</a></div></div>
+
+<div class="p"><span class="tg">4B. Rede (VPC) · Tópico 4</span><h2>VPC e subnets</h2>
+<p>A VPC aplica na nuvem tudo o que você viu de IP e sub-redes no módulo 1.</p>
+<h3>O que estudar</h3><ul>
+<li><b>VPC:</b> rede isolada por região, bloco CIDR (/16 é comum)</li>
+<li><b>Subnets:</b> cada uma numa AZ; públicas, privadas e isoladas</li>
+<li><b>Endereços reservados:</b> a AWS reserva 5 IPs por subnet</li>
+<li><b>Desenho multi-AZ:</b> pelo menos duas AZs para alta disponibilidade</li>
+<li><b>VPC padrão vs VPC customizada</b></li>
+<li><b>IPs:</b> privado, público automático e Elastic IP</li></ul>
+<div class="c">VPC 10.0.0.0/16
+├─ pública-a  10.0.1.0/24   web, ALB, NAT
+├─ pública-b  10.0.2.0/24
+├─ privada-a  10.0.11.0/24  aplicação
+├─ privada-b  10.0.12.0/24
+├─ dados-a    10.0.21.0/24  RDS (sem saída)
+└─ dados-b    10.0.22.0/24</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.aws.amazon.com/pt_br/vpc/latest/userguide/what-is-amazon-vpc.html"><span>AWS</span>O que é a Amazon VPC</a><a href="https://docs.aws.amazon.com/pt_br/vpc/latest/userguide/configure-subnets.html"><span>AWS</span>Subnets</a><a href="https://www.davidc.net/sites/default/subnets/subnets.html"><span>Ferramenta</span>Calculadora de subnets</a></div></div>
+
+<div class="p"><span class="tg">4B. Rede (VPC) · Tópico 5</span><h2>Gateways, rotas e conexões</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Route tables:</b> uma por tipo de subnet, rota local e rota padrão</li>
+<li><b>Internet Gateway:</b> torna a subnet pública</li>
+<li><b>NAT Gateway:</b> saída para a internet a partir da privada (custo por hora e por GB)</li>
+<li><b>VPC Endpoints:</b> acessar S3, ECR e outros sem passar pela internet</li>
+<li><b>VPC Peering e Transit Gateway:</b> conectar VPCs</li>
+<li><b>Site-to-Site VPN e Direct Connect</b> (conceito)</li>
+<li><b>VPC Flow Logs</b> para ver o tráfego</li></ul>
+<div class="c">pública:  10.0.0.0/16 → local | 0.0.0.0/0 → igw-xxx
+privada:  10.0.0.0/16 → local | 0.0.0.0/0 → nat-xxx
+dados:    10.0.0.0/16 → local   (sem internet)
+S3:       prefix-list → vpce-xxx (gateway endpoint, grátis)</div>
+<div class="k">Em estudos, use NAT por pouco tempo ou VPC endpoints: o NAT Gateway é um dos custos que mais surpreendem iniciantes.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.aws.amazon.com/pt_br/vpc/latest/userguide/VPC_Route_Tables.html"><span>AWS</span>Route tables</a><a href="https://docs.aws.amazon.com/pt_br/vpc/latest/userguide/vpc-nat-gateway.html"><span>AWS</span>NAT Gateway</a><a href="https://docs.aws.amazon.com/pt_br/vpc/latest/privatelink/concepts.html"><span>AWS</span>VPC Endpoints</a></div></div>
+
+<div class="p"><span class="tg">4B. Rede (VPC) · Tópico 6</span><h2>Security Groups, NACLs e DNS</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Security Group:</b> stateful, por interface, só regras Allow, pode referenciar outro SG</li>
+<li><b>NACL:</b> stateless, por subnet, Allow e Deny, regras numeradas, portas efêmeras</li>
+<li><b>Desenho em camadas:</b> ALB aceita 443 da internet, app aceita só do ALB, banco só da app</li>
+<li><b>Route 53:</b> hosted zones públicas e privadas, registros alias, health checks, roteamento</li>
+<li><b>Cloudflare na frente da AWS:</b> DNS com proxy, WAF e cache, restringindo a origem aos IPs da Cloudflare</li></ul>
+<div class="c">sg-alb: in 443 de 0.0.0.0/0
+sg-app: in 8000 de sg-alb
+sg-db:  in 5432 de sg-app
+aws ec2 describe-security-groups --group-ids sg-xxx</div>
+<div class="s">Nunca abra 22 ou 5432 para 0.0.0.0/0. Para acesso administrativo, use Session Manager.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.aws.amazon.com/pt_br/vpc/latest/userguide/vpc-security-groups.html"><span>AWS</span>Security Groups</a><a href="https://docs.aws.amazon.com/pt_br/Route53/latest/DeveloperGuide/Welcome.html"><span>AWS</span>Route 53</a><a href="https://developers.cloudflare.com/fundamentals/concepts/how-cloudflare-works/"><span>Cloudflare</span>Como a Cloudflare funciona</a></div></div>
+
+<div class="p"><span class="tg">4C. Computação e dados · Tópico 7</span><h2>EC2, EBS e Auto Scaling</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Instâncias:</b> AMI, famílias (t, m, c, r, g) e tamanhos, arquiteturas x86 e Graviton (arm)</li>
+<li><b>User data</b> para configurar no primeiro boot</li>
+<li><b>Acesso:</b> key pair vs Session Manager</li>
+<li><b>Armazenamento:</b> EBS (gp3, io2), snapshots, instance store</li>
+<li><b>Opções de compra:</b> On-Demand, Spot, Savings Plans</li>
+<li><b>Launch templates e Auto Scaling Groups:</b> mínimo, desejado, máximo e políticas de escala</li>
+<li><b>Metadados:</b> IMDSv2</li></ul>
+<div class="c">aws ec2 run-instances --image-id ami-xxx --instance-type t3.micro \
+  --subnet-id subnet-xxx --security-group-ids sg-app \
+  --iam-instance-profile Name=app-ec2 \
+  --metadata-options HttpTokens=required \
+  --user-data file://bootstrap.sh
+aws ssm start-session --target i-xxx
+aws ec2 create-snapshot --volume-id vol-xxx</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.aws.amazon.com/pt_br/AWSEC2/latest/UserGuide/concepts.html"><span>AWS</span>O que é o EC2</a><a href="https://docs.aws.amazon.com/pt_br/autoscaling/ec2/userguide/what-is-amazon-ec2-auto-scaling.html"><span>AWS</span>Auto Scaling</a><a href="https://docs.aws.amazon.com/pt_br/ebs/latest/userguide/what-is-ebs.html"><span>AWS</span>Amazon EBS</a></div></div>
+
+<div class="p"><span class="tg">4C. Computação e dados · Tópico 8</span><h2>S3 e CloudFront</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Conceitos:</b> bucket, objeto, chave, prefixo, nomes únicos globais</li>
+<li><b>Classes de armazenamento:</b> Standard, IA, Glacier, Intelligent-Tiering</li>
+<li><b>Versionamento e lifecycle</b></li>
+<li><b>Segurança:</b> Block Public Access, bucket policy, criptografia SSE-S3 e SSE-KMS</li>
+<li><b>Presigned URLs</b> para acesso temporário</li>
+<li><b>Site estático</b> com S3 + CloudFront</li>
+<li><b>CDN:</b> CloudFront ou Cloudflare, cache na borda e TTL</li></ul>
+<div class="c">aws s3 mb s3://app-estudos-ramon-123
+aws s3api put-bucket-versioning --bucket app-estudos-ramon-123 \
+  --versioning-configuration Status=Enabled
+aws s3 sync ./dist s3://app-estudos-ramon-123/ --delete
+aws s3 presign s3://app-estudos-ramon-123/relatorio.pdf --expires-in 3600</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.aws.amazon.com/pt_br/AmazonS3/latest/userguide/Welcome.html"><span>AWS</span>Amazon S3</a><a href="https://docs.aws.amazon.com/pt_br/AmazonCloudFront/latest/DeveloperGuide/Introduction.html"><span>AWS</span>Amazon CloudFront</a><a href="https://www.cloudflare.com/pt-br/learning/cdn/what-is-a-cdn/"><span>Cloudflare</span>O que é uma CDN</a></div></div>
+
+<div class="p"><span class="tg">4C. Computação e dados · Tópico 9</span><h2>RDS, ELB e containers</h2>
+<h3>O que estudar</h3><ul>
+<li><b>RDS:</b> engines, subnet group privado, Multi-AZ, réplicas de leitura, backups e snapshots, parameter groups</li>
+<li><b>Credenciais:</b> Secrets Manager com rotação</li>
+<li><b>Outros dados:</b> DynamoDB e ElastiCache (quando usar)</li>
+<li><b>Elastic Load Balancing:</b> ALB (camada 7, rotas por caminho e host) vs NLB (camada 4)</li>
+<li><b>Target groups e health checks</b></li>
+<li><b>Certificados TLS</b> no ACM</li>
+<li><b>Containers na AWS:</b> ECR, ECS com Fargate, EKS (visão geral), App Runner</li>
+<li><b>Serverless:</b> Lambda e API Gateway (visão geral)</li></ul>
+<div class="c">aws rds create-db-instance --db-instance-identifier app-db \
+  --engine postgres --db-instance-class db.t3.micro \
+  --allocated-storage 20 --storage-encrypted \
+  --manage-master-user-password --no-publicly-accessible \
+  --db-subnet-group-name dados --vpc-security-group-ids sg-db</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.aws.amazon.com/pt_br/AmazonRDS/latest/UserGuide/Welcome.html"><span>AWS</span>Amazon RDS</a><a href="https://docs.aws.amazon.com/pt_br/elasticloadbalancing/latest/application/introduction.html"><span>AWS</span>Application Load Balancer</a><a href="https://docs.aws.amazon.com/pt_br/AmazonECS/latest/developerguide/AWS_Fargate.html"><span>AWS</span>ECS com Fargate</a></div></div>
+
+<div class="p"><span class="tg">4D. Operação · Tópico 10</span><h2>CloudWatch métricas e alarmes</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Métricas:</b> namespaces, dimensões, períodos, estatísticas (Average, p99)</li>
+<li><b>Métricas padrão vs customizadas</b> (memória e disco precisam do agent)</li>
+<li><b>Alarmes:</b> estados OK, ALARM e INSUFFICIENT_DATA, avaliação por períodos</li>
+<li><b>Ações:</b> SNS, Auto Scaling, recuperar instância</li>
+<li><b>Dashboards</b></li>
+<li><b>Os 4 sinais de ouro:</b> latência, tráfego, erros e saturação</li></ul>
+<div class="c">aws cloudwatch put-metric-alarm --alarm-name api-5xx \
+  --namespace AWS/ApplicationELB --metric-name HTTPCode_Target_5XX_Count \
+  --dimensions Name=LoadBalancer,Value=app/meu-alb/xxx \
+  --statistic Sum --period 60 --evaluation-periods 3 \
+  --threshold 10 --comparison-operator GreaterThanThreshold \
+  --alarm-actions arn:aws:sns:us-east-1:123:alertas</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.aws.amazon.com/pt_br/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html"><span>AWS</span>Amazon CloudWatch</a><a href="https://docs.aws.amazon.com/pt_br/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html"><span>AWS</span>Alarmes</a><a href="https://sre.google/sre-book/monitoring-distributed-systems/"><span>Google SRE</span>Monitorando sistemas distribuídos</a></div></div>
+
+<div class="p"><span class="tg">4D. Operação · Tópico 11</span><h2>CloudWatch Logs</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Log groups e log streams</b>, retenção</li>
+<li><b>Envio:</b> CloudWatch Agent, driver awslogs do Docker, Lambda automático</li>
+<li><b>Logs estruturados em JSON</b></li>
+<li><b>Logs Insights:</b> consultas com filter, stats, sort</li>
+<li><b>Metric filters:</b> transformar padrões de log em métricas e alarmes</li>
+<li><b>Exportar</b> para S3 para retenção longa e barata</li></ul>
+<div class="c">aws logs tail /app/api --follow --since 10m
+aws logs put-retention-policy --log-group-name /app/api --retention-in-days 30
+# Logs Insights
+fields @timestamp, level, msg, path
+| filter level = "error"
+| stats count() by path
+| sort count() desc</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.aws.amazon.com/pt_br/AmazonCloudWatch/latest/logs/WhatIsCloudWatchLogs.html"><span>AWS</span>CloudWatch Logs</a><a href="https://docs.aws.amazon.com/pt_br/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html"><span>AWS</span>Sintaxe do Logs Insights</a><a href="https://docs.aws.amazon.com/pt_br/AmazonCloudWatch/latest/monitoring/Install-CloudWatch-Agent.html"><span>AWS</span>CloudWatch Agent</a></div></div>
+
+<div class="p"><span class="tg">4D. Operação · Tópico 12</span><h2>Auditoria, custos e Well-Architected</h2>
+<h3>O que estudar</h3><ul>
+<li><b>CloudTrail:</b> registro de chamadas de API, trail multi-região, entrega no S3</li>
+<li><b>AWS Config:</b> histórico de configurações e regras de conformidade</li>
+<li><b>SNS:</b> tópicos e assinaturas para alertas</li>
+<li><b>Custos:</b> Cost Explorer, Budgets, tags de alocação de custos, Free Tier alerts</li>
+<li><b>Well-Architected Framework:</b> os 6 pilares (excelência operacional, segurança, confiabilidade, eficiência de performance, otimização de custos, sustentabilidade)</li>
+<li><b>Infraestrutura como código:</b> CloudFormation vs Terraform (prepara para o módulo 6)</li></ul>
+<div class="c">aws cloudtrail lookup-events \
+  --lookup-attributes AttributeKey=EventName,AttributeValue=DeleteBucket
+aws ce get-cost-and-usage --time-period Start=2026-10-01,End=2026-10-22 \
+  --granularity MONTHLY --metrics UnblendedCost</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.aws.amazon.com/pt_br/awscloudtrail/latest/userguide/cloudtrail-user-guide.html"><span>AWS</span>CloudTrail</a><a href="https://docs.aws.amazon.com/pt_br/wellarchitected/latest/framework/welcome.html"><span>AWS</span>Well-Architected Framework</a><a href="https://docs.aws.amazon.com/pt_br/cost-management/latest/userguide/budgets-managing-costs.html"><span>AWS</span>AWS Budgets</a></div></div>
+
+<div class="p"><span class="tg">DevSecOps</span><h2>Segurança na AWS</h2>
+<h3>O que estudar e aplicar</h3><ol>
+<li><b>Conta:</b> MFA no root e em todos, sem access keys no root</li>
+<li><b>Menor privilégio</b> e roles em vez de chaves de longa duração</li>
+<li><b>Rede em camadas:</b> só o load balancer exposto, banco isolado</li>
+<li><b>Criptografia:</b> KMS em EBS, RDS e S3; TLS em trânsito com ACM</li>
+<li><b>Segredos:</b> Secrets Manager ou Parameter Store</li>
+<li><b>Detecção:</b> GuardDuty, Security Hub, IAM Access Analyzer, Inspector</li>
+<li><b>Borda:</b> AWS WAF e Shield, ou Cloudflare WAF e proteção DDoS</li>
+<li><b>Auditoria:</b> CloudTrail em todas as regiões, Config</li>
+<li><b>Backups</b> testados e snapshots criptografados</li></ol>
+<div class="c">aws guardduty create-detector --enable
+aws securityhub enable-security-hub
+aws accessanalyzer create-analyzer --analyzer-name conta --type ACCOUNT</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.aws.amazon.com/pt_br/wellarchitected/latest/security-pillar/welcome.html"><span>AWS</span>Pilar de Segurança</a><a href="https://docs.aws.amazon.com/pt_br/guardduty/latest/ug/what-is-guardduty.html"><span>AWS</span>GuardDuty</a><a href="https://www.cloudflare.com/pt-br/learning/ddos/glossary/web-application-firewall-waf/"><span>Cloudflare</span>O que é um WAF</a></div></div>
+
+<div class="p"><span class="tg">Projeto prático</span><h2>App em alta disponibilidade na AWS</h2>
+<ol><li>VPC com subnets públicas, privadas e de dados em duas AZs</li><li>ALB na pública com certificado do ACM (HTTPS)</li><li>EC2 na privada rodando a app do módulo 3 com Docker, acessível só pelo ALB</li><li>RDS PostgreSQL criptografado na subnet de dados, senha no Secrets Manager</li><li>Imagem no ECR, EC2 com role mínima e acesso via Session Manager</li><li>Logs no CloudWatch, alarmes de 5xx e CPU com aviso por SNS</li><li>Opcional: domínio na Cloudflare com proxy e Full (strict)</li><li>Desenhe a arquitetura e anote o custo diário; destrua tudo no fim</li></ol>
+<h3>Para se inspirar</h3><div class="lk"><a href="https://aws.amazon.com/pt/getting-started/hands-on/"><span>AWS</span>Tutoriais hands-on</a><a href="https://roadmap.sh/projects"><span>Projetos</span>Projetos DevOps (roadmap.sh)</a><a href="https://aws.amazon.com/pt/certification/certified-solutions-architect-associate/"><span>Certificação</span>Solutions Architect Associate</a></div></div>
