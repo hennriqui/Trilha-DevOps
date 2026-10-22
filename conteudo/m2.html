@@ -1,0 +1,245 @@
+<h1>Módulo 2: Automação com Bash</h1>
+
+<div class="p p0"><span class="tg">Como usar</span><h2>Módulo 2: automatize o repetitivo</h2>
+<p>Se você fez algo duas vezes, automatize. Shell scripting é parte do roadmap de Linux do roadmap.sh e a cola que une as ferramentas DevOps: scripts de deploy, backups, health checks e passos de CI.</p>
+<ol><li>Abra os tópicos em ordem</li><li>Use a lista "O que estudar" como roteiro</li><li>Escreva cada exemplo à mão e rode no terminal</li></ol>
+<div class="k">Crie a pasta ~/scripts, versione no Git e rode o ShellCheck em tudo desde o primeiro script.</div>
+<h3>Referências gerais</h3><div class="lk"><a href="https://roadmap.sh/shell-bash"><span>Roadmap</span>Shell e Bash</a><a href="https://mywiki.wooledge.org/BashGuide"><span>Guia</span>BashGuide</a><a href="https://explainshell.com/"><span>Ferramenta</span>explainshell</a></div></div>
+
+<div class="p"><span class="tg">2A. Fundamentos · Tópico 1</span><h2>Estrutura e execução</h2>
+<p>Um script é um arquivo de texto com comandos executados em ordem. Entender como o shell encontra e roda o arquivo evita a maioria dos erros iniciais.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Shebang:</b> #!/usr/bin/env bash e por que é melhor que #!/bin/sh para scripts Bash</li>
+<li><b>Permissão de execução</b> e as formas de rodar: ./script.sh, bash script.sh, source script.sh (e a diferença)</li>
+<li><b>Bash vs sh vs zsh:</b> o que é POSIX</li>
+<li><b>Comentários e cabeçalho</b> com descrição e uso</li>
+<li><b>Debug:</b> bash -x e set -x</li>
+<li><b>Onde guardar:</b> ~/bin, /usr/local/bin e o $PATH</li></ul>
+<div class="c">#!/usr/bin/env bash
+# saudacao.sh: exibe usuário, host e data
+# uso: ./saudacao.sh
+echo "Olá, $(whoami) em $(hostname). Hoje: $(date +%F)"
+
+chmod +x saudacao.sh &amp;&amp; ./saudacao.sh
+bash -x saudacao.sh   # mostra cada linha executada</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.gnu.org/software/bash/manual/bash.html"><span>Documentação</span>Manual do Bash</a><a href="https://linuxcommand.org/lc3_writing_shell_scripts.php"><span>Tutorial</span>Writing Shell Scripts</a><a href="https://roadmap.sh/shell-bash"><span>Roadmap</span>Shell e Bash</a></div></div>
+
+<div class="p"><span class="tg">2A. Fundamentos · Tópico 2</span><h2>Variáveis e expansões</h2>
+<p>O Bash faz várias expansões antes de executar um comando. Saber a ordem delas explica comportamentos estranhos.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Atribuição:</b> NOME="valor" sem espaços em volta do =</li>
+<li><b>Aspas:</b> duplas expandem variáveis, simples não, e por que sempre usar "$VAR"</li>
+<li><b>Substituição de comando:</b> $(comando)</li>
+<li><b>Aritmética:</b> $(( a + b ))</li>
+<li><b>Expansão de parâmetros:</b> ${VAR:-padrão}, ${VAR:?erro}, ${#VAR}, ${VAR%.txt}, ${VAR/a/b}</li>
+<li><b>Variáveis de ambiente:</b> export, env, .env</li>
+<li><b>Variáveis especiais:</b> $0, $1..$9, $@, $#, $$, $?</li>
+<li><b>Entrada do usuário:</b> read -rp</li></ul>
+<div class="c">AMBIENTE="${1:-dev}"            # padrão se vazio
+ARQ="relatorio.txt"
+echo "${ARQ%.txt}.csv"          # relatorio.csv
+TOTAL=$(( 10 * 3 ))
+DATA=$(date +%Y%m%d)
+echo "Script $0 com $# argumentos: $@"
+read -rp "Confirmar deploy em $AMBIENTE? [s/N] " OK</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html"><span>Documentação</span>Expansão de parâmetros</a><a href="https://mywiki.wooledge.org/Quotes"><span>Guia</span>Aspas no Bash</a><a href="https://devhints.io/bash"><span>Cola</span>Bash cheatsheet</a></div></div>
+
+<div class="p"><span class="tg">2A. Fundamentos · Tópico 3</span><h2>Exit codes e operadores</h2>
+<p>Todo comando retorna um código: 0 é sucesso, de 1 a 255 é erro. Pipelines de CI, cron e systemd decidem tudo com base nisso.</p>
+<h3>O que estudar</h3><ul>
+<li><b>$?</b> e o código do último comando</li>
+<li><b>&amp;&amp; e ||</b> para encadear por sucesso ou falha</li>
+<li><b>; e agrupamento</b> com { } e ( )</li>
+<li><b>exit N</b> e convenções (1 erro geral, 2 uso incorreto, 127 comando não encontrado)</li>
+<li><b>true, false</b> e o comando :</li></ul>
+<div class="c">ls /nao-existe ; echo $?       # 2
+mkdir -p /tmp/app &amp;&amp; echo "criado"
+ping -c1 -W1 db || echo "banco fora do ar"
+command -v docker &gt;/dev/null || { echo "instale o docker"; exit 1; }</div>
+<div class="k">O padrão command -v ferramenta || exit 1 no início do script verifica dependências antes de começar.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.gnu.org/software/bash/manual/html_node/Exit-Status.html"><span>Documentação</span>Exit status</a><a href="https://tldp.org/LDP/abs/html/exitcodes.html"><span>Referência</span>Códigos de saída reservados</a><a href="https://mywiki.wooledge.org/BashGuide/TestsAndConditionals"><span>Guia</span>Testes e condicionais</a></div></div>
+
+<div class="p"><span class="tg">2B. Controle de fluxo · Tópico 4</span><h2>Testes e condicionais</h2>
+<h3>O que estudar</h3><ul>
+<li><b>[[ ]] vs [ ]:</b> por que preferir [[ ]] no Bash</li>
+<li><b>Testes de arquivo:</b> -f, -d, -e, -r, -w, -x, -s</li>
+<li><b>Strings:</b> ==, !=, -z (vazia), -n (não vazia), =~ (regex)</li>
+<li><b>Números:</b> -eq, -ne, -gt, -lt, -ge, -le ou (( ))</li>
+<li><b>if, elif, else</b> e <b>case</b> com padrões</li>
+<li><b>Lógica:</b> &amp;&amp;, || e ! dentro dos testes</li></ul>
+<div class="c">if [[ ! -f "$CONF" ]]; then
+  echo "config ausente" &gt;&amp;2; exit 1
+elif [[ "$AMBIENTE" =~ ^(dev|prod)$ ]]; then
+  echo "ok: $AMBIENTE"
+fi
+(( USO &gt; 80 )) &amp;&amp; echo "disco acima de 80%"
+case "$1" in
+  start|up) iniciar ;;
+  stop)     parar ;;
+  *) echo "uso: $0 {start|stop}"; exit 2 ;;
+esac</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.gnu.org/software/bash/manual/html_node/Bash-Conditional-Expressions.html"><span>Documentação</span>Expressões condicionais</a><a href="https://mywiki.wooledge.org/BashFAQ/031"><span>FAQ</span>Diferença entre [ e [[</a><a href="https://www.gnu.org/software/bash/manual/html_node/Conditional-Constructs.html"><span>Documentação</span>if e case</a></div></div>
+
+<div class="p"><span class="tg">2B. Controle de fluxo · Tópico 5</span><h2>Laços e arrays</h2>
+<h3>O que estudar</h3><ul>
+<li><b>for</b> sobre listas, intervalos {1..10} e estilo C</li>
+<li><b>while read -r</b> para ler arquivos linha a linha</li>
+<li><b>until</b> para esperar uma condição</li>
+<li><b>break e continue</b></li>
+<li><b>Arrays indexados:</b> declaração, "${arr[@]}", ${#arr[@]}</li>
+<li><b>Arrays associativos:</b> declare -A</li>
+<li><b>Glob:</b> for f in *.log e o cuidado com nenhum resultado</li></ul>
+<div class="c">SERVIDORES=(web1 web2 web3)
+for s in "${SERVIDORES[@]}"; do ssh "$s" uptime; done
+declare -A PORTA=([web]=80 [db]=5432)
+echo "${PORTA[db]}"
+while IFS=, read -r nome ip; do
+  echo "$nome -&gt; $ip"
+done &lt; hosts.csv
+until curl -sf localhost:8080/health; do sleep 2; done</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.gnu.org/software/bash/manual/html_node/Looping-Constructs.html"><span>Documentação</span>Laços</a><a href="https://www.gnu.org/software/bash/manual/html_node/Arrays.html"><span>Documentação</span>Arrays</a><a href="https://mywiki.wooledge.org/BashFAQ/001"><span>FAQ</span>Ler arquivo linha a linha</a></div></div>
+
+<div class="p"><span class="tg">2B. Controle de fluxo · Tópico 6</span><h2>Funções e argumentos</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Declaração e chamada</b> de funções</li>
+<li><b>local</b> para variáveis internas</li>
+<li><b>Retorno:</b> return (status) vs echo (valor)</li>
+<li><b>Argumentos de função:</b> $1, $@ dentro da função</li>
+<li><b>Opções de linha de comando</b> com getopts</li>
+<li><b>Função usage</b> e mensagens de ajuda</li>
+<li><b>Bibliotecas:</b> source de um arquivo comum</li></ul>
+<div class="c">usage() { echo "uso: $0 -e ambiente [-v]"; exit 2; }
+log() { echo "[$(date +%T)] $*" &gt;&amp;2; }
+while getopts "e:v" opt; do
+  case $opt in
+    e) AMB="$OPTARG" ;;
+    v) VERBOSE=1 ;;
+    *) usage ;;
+  esac
+done
+[[ -z "${AMB:-}" ]] &amp;&amp; usage
+log "deploy em $AMB"</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.gnu.org/software/bash/manual/html_node/Shell-Functions.html"><span>Documentação</span>Funções</a><a href="https://mywiki.wooledge.org/BashFAQ/035"><span>FAQ</span>Tratando opções e getopts</a><a href="https://google.github.io/styleguide/shellguide.html"><span>Guia</span>Google Shell Style Guide</a></div></div>
+
+<div class="p"><span class="tg">2C. Texto e dados · Tópico 7</span><h2>Streams e pipes</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Descritores:</b> 0 stdin, 1 stdout, 2 stderr</li>
+<li><b>Redirecionar:</b> &gt;, &gt;&gt;, 2&gt;, &amp;&gt;, 2&gt;&amp;1, /dev/null</li>
+<li><b>Here-doc e here-string:</b> &lt;&lt;EOF e &lt;&lt;&lt;</li>
+<li><b>Pipes</b> e o código de saída num pipeline (pipefail)</li>
+<li><b>tee</b> para tela e arquivo</li>
+<li><b>xargs</b> para transformar linhas em argumentos</li>
+<li><b>Substituição de processo:</b> &lt;( )</li></ul>
+<div class="c">./deploy.sh &gt; deploy.log 2&gt;&amp;1
+comando 2&gt;/dev/null
+cat &lt;&lt;EOF &gt; /etc/app/config.ini
+porta=8080
+ambiente=$AMB
+EOF
+find . -name "*.tmp" -print0 | xargs -0 rm -f
+diff &lt;(sort a.txt) &lt;(sort b.txt)</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.gnu.org/software/bash/manual/html_node/Redirections.html"><span>Documentação</span>Redirecionamentos</a><a href="https://mywiki.wooledge.org/BashGuide/InputAndOutput"><span>Guia</span>Entrada e saída</a><a href="https://explainshell.com/"><span>Ferramenta</span>explainshell</a></div></div>
+
+<div class="p"><span class="tg">2C. Texto e dados · Tópico 8</span><h2>grep, sed, awk e regex</h2>
+<p>O trio clássico para analisar logs e editar configurações em massa, base das tarefas de text processing do roadmap Linux.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Expressões regulares:</b> ., *, +, ?, ^, $, [ ], grupos, básicas vs estendidas (-E)</li>
+<li><b>grep:</b> -i, -v, -c, -r, -o, -E, -A e -B para contexto</li>
+<li><b>sed:</b> substituição s///g, -i para editar no lugar, apagar linhas</li>
+<li><b>awk:</b> campos $1 $NF, -F separador, filtros, somas e médias</li>
+<li><b>Combinando:</b> sort, uniq -c, sort -rn, head</li></ul>
+<div class="c"># top 10 IPs no log do Nginx
+awk '{print $1}' access.log | sort | uniq -c | sort -rn | head
+# requisições com erro 5xx
+grep -E '" 5[0-9]{2} ' access.log | wc -l
+# média do tempo de resposta (último campo)
+awk '{s+=$NF} END {print s/NR}' access.log
+sed -i 's/^PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://regexr.com/"><span>Prática</span>RegExr: teste expressões</a><a href="https://www.grymoire.com/Unix/Sed.html"><span>Tutorial</span>sed (Grymoire)</a><a href="https://www.grymoire.com/Unix/Awk.html"><span>Tutorial</span>awk (Grymoire)</a></div></div>
+
+<div class="p"><span class="tg">2C. Texto e dados · Tópico 9</span><h2>APIs: curl e jq</h2>
+<p>AWS, GitHub, Cloudflare e quase toda ferramenta moderna têm API REST em JSON. curl faz a chamada, jq extrai os dados.</p>
+<h3>O que estudar</h3><ul>
+<li><b>curl:</b> -s, -f, -X, -H, -d, -o, -w "%{http_code}", --retry</li>
+<li><b>Autenticação:</b> header Authorization: Bearer com token em variável</li>
+<li><b>JSON:</b> objetos, arrays e tipos (MDN)</li>
+<li><b>jq:</b> .campo, .[], select(), map(), -r para texto puro</li>
+<li><b>Health checks</b> e retentativas</li></ul>
+<div class="c">curl -s https://api.github.com/repos/hashicorp/terraform \
+  | jq '{estrelas: .stargazers_count, linguagem: .language}'
+curl -s -H "Authorization: Bearer $CF_TOKEN" \
+  "https://api.cloudflare.com/client/v4/zones" | jq -r '.result[].name'
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://meu-app.com/health)
+[[ "$STATUS" == "200" ]] || echo "app com problema: $STATUS"</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://jqlang.github.io/jq/manual/"><span>Documentação</span>Manual do jq</a><a href="https://developer.mozilla.org/pt-BR/docs/Learn/JavaScript/Objects/JSON"><span>MDN</span>Trabalhando com JSON</a><a href="https://everything.curl.dev/"><span>Livro grátis</span>Everything curl</a></div></div>
+
+<div class="p"><span class="tg">2D. Robustez · Tópico 10</span><h2>Agendamento</h2>
+<h3>O que estudar</h3><ul>
+<li><b>cron:</b> sintaxe de 5 campos, crontab -e e -l, /etc/cron.d</li>
+<li><b>Ambiente do cron:</b> PATH mínimo, caminhos absolutos e redirecionar a saída para log</li>
+<li><b>systemd timers:</b> .timer + .service, OnCalendar, logs no journalctl</li>
+<li><b>Evitar execuções sobrepostas:</b> flock</li>
+<li><b>at</b> para execução única</li></ul>
+<div class="c"># crontab: todo dia às 02:00, sem rodar duas vezes ao mesmo tempo
+0 2 * * * flock -n /tmp/bkp.lock /opt/scripts/backup.sh &gt;&gt; /var/log/backup.log 2&gt;&amp;1
+
+# /etc/systemd/system/backup.timer
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+[Install]
+WantedBy=timers.target</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://crontab.guru/"><span>Ferramenta</span>crontab.guru</a><a href="https://wiki.archlinux.org/title/Systemd/Timers"><span>Documentação</span>systemd timers</a><a href="https://man7.org/linux/man-pages/man1/flock.1.html"><span>Manual</span>man flock</a></div></div>
+
+<div class="p"><span class="tg">2D. Robustez · Tópico 11</span><h2>Tratamento de erros</h2>
+<p>Por padrão, o Bash segue em frente depois de um erro. Em automação, o script tem que parar, limpar o que fez e avisar.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Modo estrito:</b> set -euo pipefail e o que cada flag faz</li>
+<li><b>Limitações do set -e</b> (dentro de if, com || e em subshells)</li>
+<li><b>trap:</b> EXIT para limpeza, ERR para relatar a linha do erro, INT e TERM</li>
+<li><b>Arquivos temporários seguros</b> com mktemp</li>
+<li><b>Mensagens de erro</b> no stderr e códigos de saída significativos</li>
+<li><b>Retentativas</b> com backoff</li></ul>
+<div class="c">#!/usr/bin/env bash
+set -euo pipefail
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+trap 'echo "erro na linha $LINENO" &gt;&amp;2' ERR
+retry() { local n=0; until "$@"; do (( ++n &gt;= 5 )) &amp;&amp; return 1; sleep $((n*2)); done; }
+retry curl -sf https://api.exemplo.com/health</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html"><span>Documentação</span>O comando set</a><a href="https://mywiki.wooledge.org/BashFAQ/105"><span>FAQ</span>Armadilhas do set -e</a><a href="https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html#index-trap"><span>Documentação</span>trap</a></div></div>
+
+<div class="p"><span class="tg">2D. Robustez · Tópico 12</span><h2>Idempotência, logs e lint</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Idempotência:</b> rodar duas vezes tem o mesmo resultado (mkdir -p, verificar antes de criar)</li>
+<li><b>Logs:</b> data e nível em cada linha, logger para o syslog</li>
+<li><b>ShellCheck:</b> análise estática que encontra bugs comuns</li>
+<li><b>shfmt:</b> formatação padronizada</li>
+<li><b>Testes de scripts</b> com bats</li>
+<li><b>Quando trocar de linguagem:</b> scripts maiores que ~200 linhas ou com lógica complexa vão melhor em Python ou Go</li></ul>
+<div class="c">id deploy &amp;&gt;/dev/null || useradd -m deploy
+grep -qxF 'vm.swappiness=10' /etc/sysctl.conf || echo 'vm.swappiness=10' &gt;&gt; /etc/sysctl.conf
+log() { echo "$(date '+%F %T') [$1] ${*:2}" | tee -a /var/log/app-deploy.log; }
+log INFO "deploy iniciado"
+shellcheck *.sh &amp;&amp; shfmt -d .</div>
+<div class="k">Idempotência é o coração do Terraform (módulo 6) e de qualquer ferramenta de configuração.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.shellcheck.net/wiki/"><span>Ferramenta</span>ShellCheck wiki</a><a href="https://github.com/mvdan/sh"><span>Ferramenta</span>shfmt</a><a href="https://bats-core.readthedocs.io/"><span>Ferramenta</span>bats: testes para Bash</a></div></div>
+
+<div class="p"><span class="tg">DevSecOps</span><h2>Scripts seguros</h2>
+<h3>O que estudar e aplicar</h3><ol>
+<li><b>Injeção de comandos:</b> nunca use eval com entrada externa; sempre aspas em variáveis</li>
+<li><b>Validação de entrada:</b> whitelist com regex antes de usar</li>
+<li><b>Segredos:</b> variáveis de ambiente ou cofre (AWS Secrets Manager, Vault), nunca no código nem em argumentos visíveis no ps</li>
+<li><b>Permissões:</b> 700 para scripts sensíveis, 600 para .env, umask 077</li>
+<li><b>Temporários:</b> mktemp, nunca nomes previsíveis em /tmp</li>
+<li><b>rm protegido:</b> "${DIR:?}" aborta se a variável estiver vazia</li>
+<li><b>Downloads:</b> verificar checksum antes de executar (evite curl | bash sem revisar)</li>
+<li><b>ShellCheck no CI</b> (módulo 5)</li></ol>
+<div class="c">[[ "$AMB" =~ ^(dev|staging|prod)$ ]] || { echo "ambiente inválido"; exit 2; }
+rm -rf "${BUILD_DIR:?variável vazia}/"
+sha256sum -c ferramenta.sha256</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://owasp.org/www-community/attacks/Command_Injection"><span>OWASP</span>Command Injection</a><a href="https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html"><span>OWASP</span>Defesa contra injeção de comandos</a><a href="https://roadmap.sh/devsecops"><span>Roadmap</span>DevSecOps</a></div></div>
+
+<div class="p"><span class="tg">Projeto prático</span><h2>Kit de scripts de operação</h2>
+<ol><li><b>server-stats.sh:</b> CPU, memória, disco, top 5 processos por CPU e memória, uptime e usuários logados</li><li><b>log-archive.sh:</b> recebe um diretório, compacta os logs com data e hora e registra cada execução</li><li><b>nginx-log-analyser.sh:</b> top 5 IPs, rotas, status codes e user agents</li><li><b>health-check.sh:</b> verifica uma URL com retentativas e alerta por webhook</li><li>Agende o arquivamento com cron ou systemd timer</li><li>Todos com set -euo pipefail, getopts, usage e passando no ShellCheck</li><li>Repositório no GitHub com README</li></ol>
+<h3>Projetos do roadmap.sh</h3><div class="lk"><a href="https://roadmap.sh/projects/server-stats"><span>Projeto</span>Server Performance Stats</a><a href="https://roadmap.sh/projects/log-archive-tool"><span>Projeto</span>Log Archive Tool</a><a href="https://roadmap.sh/projects/nginx-log-analyser"><span>Projeto</span>Nginx Log Analyser</a></div></div>
