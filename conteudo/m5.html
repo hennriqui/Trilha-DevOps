@@ -1,0 +1,308 @@
+<h1>Módulo 5: CI/CD com GitHub Actions</h1>
+
+<div class="p p0"><span class="tg">Como usar</span><h2>Módulo 5: do commit à produção</h2>
+<p>Cada mudança passa sozinha por testes, verificações de segurança e chega à produção sem passos manuais. Este módulo cobre a seção de CI/CD do roadmap DevOps usando GitHub Actions.</p>
+<ol><li>Crie um repositório de testes no GitHub</li><li>Abra os tópicos em ordem</li><li>Escreva cada workflow, faça push e acompanhe na aba Actions</li><li>Quebre o pipeline de propósito para ver como ele falha</li></ol>
+<h3>Referências gerais</h3><div class="lk"><a href="https://docs.github.com/pt/actions"><span>Documentação</span>GitHub Actions</a><a href="https://roadmap.sh/devops"><span>Roadmap</span>CI/CD no roadmap DevOps</a><a href="https://github.com/marketplace?type=actions"><span>Catálogo</span>Marketplace de Actions</a></div></div>
+
+<div class="p"><span class="tg">5A. Conceitos · Tópico 1</span><h2>CI, CD e métricas DORA</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Integração contínua:</b> integrar na main várias vezes ao dia, com build e testes automáticos</li>
+<li><b>Continuous Delivery vs Continuous Deployment:</b> aprovação manual no fim ou não</li>
+<li><b>Estágios típicos:</b> lint, testes, build, scans, publicação do artefato, deploy, verificação</li>
+<li><b>Artefato imutável:</b> construir uma vez e promover a mesma imagem entre ambientes</li>
+<li><b>Pipeline como código</b> versionado com a aplicação</li>
+<li><b>Métricas DORA:</b> frequência de deploy, lead time, taxa de falha e tempo de recuperação</li>
+<li><b>Ferramentas do mercado:</b> GitHub Actions, GitLab CI, Jenkins, CircleCI, Argo CD</li></ul>
+<div class="c">push → lint → testes → SAST/SCA → build → scan → push da imagem
+     → deploy staging → testes → aprovação → produção → smoke test</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://dora.dev/"><span>Pesquisa</span>DORA</a><a href="https://martinfowler.com/articles/continuousIntegration.html"><span>Artigo</span>Continuous Integration (Martin Fowler)</a><a href="https://aws.amazon.com/pt/devops/continuous-delivery/"><span>AWS</span>O que é entrega contínua</a></div></div>
+
+<div class="p"><span class="tg">5A. Conceitos · Tópico 2</span><h2>Anatomia de um workflow</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Arquivo YAML</b> em .github/workflows/ e sintaxe YAML (indentação, listas, mapas)</li>
+<li><b>Hierarquia:</b> workflow → jobs → steps</li>
+<li><b>Runners:</b> GitHub-hosted (ubuntu-latest) vs self-hosted</li>
+<li><b>Steps:</b> run (comando) vs uses (action), with para entradas</li>
+<li><b>env</b> no nível do workflow, job e step</li>
+<li><b>permissions</b> do GITHUB_TOKEN</li>
+<li><b>Ler os logs</b> e reexecutar jobs</li></ul>
+<div class="c">name: ci
+on: [push]
+permissions:
+  contents: read
+jobs:
+  ola:
+    runs-on: ubuntu-latest
+    env:
+      AMBIENTE: dev
+    steps:
+      - uses: actions/checkout@v4
+      - name: Informações
+        run: |
+          echo "Commit ${{ github.sha }} por ${{ github.actor }}"
+          echo "Ambiente: $AMBIENTE"</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.github.com/pt/actions/about-github-actions/understanding-github-actions"><span>Documentação</span>Entendendo o GitHub Actions</a><a href="https://docs.github.com/pt/actions/writing-workflows/workflow-syntax-for-github-actions"><span>Referência</span>Sintaxe de workflow</a><a href="https://learnxinyminutes.com/docs/pt-br/yaml-pt/"><span>Tutorial</span>YAML em minutos</a></div></div>
+
+<div class="p"><span class="tg">5A. Conceitos · Tópico 3</span><h2>Eventos, expressões e contextos</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Eventos:</b> push, pull_request, workflow_dispatch (com inputs), schedule, release, workflow_run</li>
+<li><b>Filtros:</b> branches, tags, paths</li>
+<li><b>Contextos:</b> github, env, vars, secrets, matrix, needs, steps, runner</li>
+<li><b>Expressões:</b> ${{ }}, if:, operadores e funções (contains, startsWith, success, failure, always)</li>
+<li><b>Outputs de steps</b> com $GITHUB_OUTPUT</li>
+<li><b>concurrency:</b> cancelar execuções antigas da mesma branch</li></ul>
+<div class="c">on:
+  pull_request:
+    paths: ["app/**", "Dockerfile"]
+  workflow_dispatch:
+    inputs:
+      ambiente: { type: choice, options: [staging, prod] }
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  x:
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - id: v
+        run: echo "tag=$(date +%Y%m%d)-${GITHUB_SHA::7}" &gt;&gt; "$GITHUB_OUTPUT"
+      - run: echo "${{ steps.v.outputs.tag }}"</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.github.com/pt/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows"><span>Referência</span>Eventos</a><a href="https://docs.github.com/pt/actions/writing-workflows/choosing-what-your-workflow-does/accessing-contextual-information-about-workflow-runs"><span>Referência</span>Contextos</a><a href="https://docs.github.com/pt/actions/writing-workflows/choosing-what-your-workflow-does/evaluate-expressions-in-workflows-and-actions"><span>Referência</span>Expressões</a></div></div>
+
+<div class="p"><span class="tg">5B. Integração contínua · Tópico 4</span><h2>Testes e qualidade</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Pirâmide de testes:</b> unitários, integração, ponta a ponta</li>
+<li><b>Lint e formatação</b> (eslint, ruff, gofmt) como primeiro passo</li>
+<li><b>Cobertura de testes</b> e relatórios</li>
+<li><b>Serviços no job:</b> subir PostgreSQL para testes de integração</li>
+<li><b>Branch protection:</b> status checks obrigatórios</li>
+<li><b>Feedback rápido:</b> mirar menos de 10 minutos</li></ul>
+<div class="c">jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: test }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements.txt
+      - run: ruff check .
+      - run: pytest --cov=app
+        env: { DATABASE_URL: postgresql://postgres:test@localhost/postgres }</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.github.com/pt/actions/use-cases-and-examples/using-containerized-services/about-service-containers"><span>Documentação</span>Service containers</a><a href="https://martinfowler.com/articles/practical-test-pyramid.html"><span>Artigo</span>A pirâmide de testes</a><a href="https://docs.github.com/pt/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches"><span>Documentação</span>Branches protegidas</a></div></div>
+
+<div class="p"><span class="tg">5B. Integração contínua · Tópico 5</span><h2>Jobs, needs e artifacts</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Paralelismo</b> por padrão e ordem com needs</li>
+<li><b>Outputs entre jobs</b> via needs.job.outputs</li>
+<li><b>Artifacts:</b> upload e download, retenção</li>
+<li><b>Condições:</b> rodar deploy só na main, só se testes passarem</li>
+<li><b>timeout-minutes e continue-on-error</b></li>
+<li><b>Job summaries</b> com $GITHUB_STEP_SUMMARY</li></ul>
+<div class="c">jobs:
+  build:
+    outputs:
+      versao: ${{ steps.v.outputs.versao }}
+    steps:
+      - id: v
+        run: echo "versao=1.4.${{ github.run_number }}" &gt;&gt; "$GITHUB_OUTPUT"
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with: { name: dist, path: dist/, retention-days: 7 }
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: dist }
+      - run: echo "Versão ${{ needs.build.outputs.versao }}" &gt;&gt; "$GITHUB_STEP_SUMMARY"</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.github.com/pt/actions/writing-workflows/choosing-what-your-workflow-does/using-jobs-in-a-workflow"><span>Documentação</span>Jobs</a><a href="https://docs.github.com/pt/actions/writing-workflows/choosing-what-your-workflow-does/storing-and-sharing-data-from-a-workflow"><span>Documentação</span>Artifacts</a><a href="https://docs.github.com/pt/actions/writing-workflows/choosing-what-your-workflow-does/passing-information-between-jobs"><span>Documentação</span>Outputs entre jobs</a></div></div>
+
+<div class="p"><span class="tg">5B. Integração contínua · Tópico 6</span><h2>Cache, matrix e reuso</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Cache de dependências:</b> embutido nos setup-* ou actions/cache com chave por hash do lockfile</li>
+<li><b>Cache de camadas Docker</b> (type=gha)</li>
+<li><b>Matrix:</b> várias versões e sistemas, include, exclude, fail-fast</li>
+<li><b>Reusable workflows:</b> workflow_call para padronizar pipelines entre repositórios</li>
+<li><b>Composite actions:</b> agrupar steps repetidos</li>
+<li><b>Custos e limites</b> de minutos dos runners</li></ul>
+<div class="c">strategy:
+  fail-fast: false
+  matrix:
+    os: [ubuntu-latest, windows-latest]
+    node: [20, 22]
+# reuso: .github/workflows/ci-reutilizavel.yml
+on:
+  workflow_call:
+    inputs:
+      node: { type: string, default: "20" }
+# chamando em outro workflow
+jobs:
+  ci:
+    uses: voce/pipelines/.github/workflows/ci-reutilizavel.yml@v1
+    with: { node: "22" }</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.github.com/pt/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows"><span>Documentação</span>Cache</a><a href="https://docs.github.com/pt/actions/sharing-automations/reusing-workflows"><span>Documentação</span>Reusable workflows</a><a href="https://docs.github.com/pt/actions/sharing-automations/creating-actions/creating-a-composite-action"><span>Documentação</span>Composite actions</a></div></div>
+
+<div class="p"><span class="tg">5C. Entrega contínua · Tópico 7</span><h2>Secrets e variables</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Níveis:</b> repositório, environment, organização</li>
+<li><b>Secrets vs variables:</b> sensível e mascarado vs configuração comum</li>
+<li><b>GITHUB_TOKEN:</b> token automático e o bloco permissions</li>
+<li><b>Mascaramento</b> e o risco de imprimir segredos derivados</li>
+<li><b>PRs de forks</b> não recebem secrets (e o perigo do pull_request_target)</li>
+<li><b>Gerenciadores externos:</b> AWS Secrets Manager, Vault, buscados em tempo de execução</li></ul>
+<div class="c">gh secret set SLACK_WEBHOOK
+gh secret set DB_PASSWORD --env production
+gh variable set AWS_REGION --body us-east-1
+steps:
+  - run: ./notificar.sh
+    env:
+      WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REGIAO: ${{ vars.AWS_REGION }}</div>
+<div class="s">Secrets em variáveis de ambiente do step, nunca interpolados direto no script com ${{ }} (evita injeção).</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.github.com/pt/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions"><span>Documentação</span>Secrets</a><a href="https://docs.github.com/pt/actions/security-for-github-actions/security-guides/automatic-token-authentication"><span>Documentação</span>GITHUB_TOKEN</a><a href="https://cli.github.com/manual/gh_secret"><span>Ferramenta</span>gh secret</a></div></div>
+
+<div class="p"><span class="tg">5C. Entrega contínua · Tópico 8</span><h2>Build e publicação de imagens</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Buildx e build-push-action</b></li>
+<li><b>Login:</b> GHCR com GITHUB_TOKEN, ECR via OIDC</li>
+<li><b>Tags automáticas</b> com docker/metadata-action (SHA, branch, semver)</li>
+<li><b>Cache de camadas</b> no GitHub Actions</li>
+<li><b>Builds multiplataforma</b> (amd64 e arm64)</li>
+<li><b>Releases:</b> tags git disparando versões</li></ul>
+<div class="c">permissions: { contents: read, packages: write }
+steps:
+  - uses: docker/setup-buildx-action@v3
+  - uses: docker/login-action@v3
+    with:
+      registry: ghcr.io
+      username: ${{ github.actor }}
+      password: ${{ secrets.GITHUB_TOKEN }}
+  - id: meta
+    uses: docker/metadata-action@v5
+    with:
+      images: ghcr.io/${{ github.repository }}
+      tags: |
+        type=sha
+        type=semver,pattern={{version}}
+  - uses: docker/build-push-action@v6
+    with:
+      push: true
+      tags: ${{ steps.meta.outputs.tags }}
+      cache-from: type=gha
+      cache-to: type=gha,mode=max</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.docker.com/build/ci/github-actions/"><span>Docker</span>Docker no GitHub Actions</a><a href="https://github.com/docker/metadata-action"><span>Action</span>metadata-action</a><a href="https://github.com/aws-actions/amazon-ecr-login"><span>Action</span>Login no ECR</a></div></div>
+
+<div class="p"><span class="tg">5C. Entrega contínua · Tópico 9</span><h2>Environments e aprovação</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Environments:</b> dev, staging, production com secrets próprios</li>
+<li><b>Regras de proteção:</b> revisores obrigatórios, tempo de espera, branches permitidas</li>
+<li><b>Promoção:</b> a mesma imagem passa de staging para produção</li>
+<li><b>URL do ambiente</b> no histórico de deployments</li>
+<li><b>Feature flags</b> para separar deploy de lançamento (conceito)</li></ul>
+<div class="c">jobs:
+  staging:
+    environment: { name: staging, url: https://staging.meu-app.com }
+    steps: [ { run: ./deploy.sh staging "$TAG" } ]
+  producao:
+    needs: staging
+    environment: { name: production, url: https://meu-app.com }
+    steps: [ { run: ./deploy.sh prod "$TAG" } ]</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.github.com/pt/actions/managing-workflow-runs-and-deployments/managing-deployments/managing-environments-for-deployment"><span>Documentação</span>Environments</a><a href="https://docs.github.com/pt/actions/managing-workflow-runs-and-deployments/managing-deployments/reviewing-deployments"><span>Documentação</span>Aprovar deploys</a><a href="https://martinfowler.com/articles/feature-toggles.html"><span>Artigo</span>Feature toggles</a></div></div>
+
+<div class="p"><span class="tg">5D. Deploy · Tópico 10</span><h2>OIDC com a AWS</h2>
+<p>O GitHub prova sua identidade para a AWS e recebe credenciais temporárias. Nenhuma access key fica guardada.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Como funciona:</b> token OIDC do GitHub, Identity Provider no IAM, AssumeRoleWithWebIdentity</li>
+<li><b>Trust policy:</b> condição no campo sub restringindo repositório, branch ou environment</li>
+<li><b>Permissions:</b> id-token: write</li>
+<li><b>Role mínima</b> por finalidade (deploy, terraform plan, terraform apply)</li>
+<li><b>Mesma ideia em outras nuvens</b> e na Cloudflare (tokens com escopo)</li></ul>
+<div class="c">"Condition": {
+  "StringEquals": {"token.actions.githubusercontent.com:aud": "sts.amazonaws.com"},
+  "StringLike": {"token.actions.githubusercontent.com:sub": "repo:voce/projeto:environment:production"}
+}
+# workflow
+permissions: { id-token: write, contents: read }
+- uses: aws-actions/configure-aws-credentials@v4
+  with:
+    role-to-assume: arn:aws:iam::123456789012:role/gh-deploy
+    aws-region: us-east-1</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.github.com/pt/actions/security-for-github-actions/security-hardening-your-deployments/about-security-hardening-with-openid-connect"><span>Documentação</span>Sobre OIDC</a><a href="https://docs.github.com/pt/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services"><span>Documentação</span>OIDC com AWS</a><a href="https://github.com/aws-actions/configure-aws-credentials"><span>Action</span>configure-aws-credentials</a></div></div>
+
+<div class="p"><span class="tg">5D. Deploy · Tópico 11</span><h2>Estratégias de deploy</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Recreate:</b> derruba e sobe (tem indisponibilidade)</li>
+<li><b>Rolling update:</b> troca instâncias aos poucos</li>
+<li><b>Blue/green:</b> dois ambientes, troca o tráfego de uma vez</li>
+<li><b>Canary:</b> pequena porcentagem do tráfego primeiro</li>
+<li><b>Mecanismos na AWS:</b> SSM Run Command na EC2, nova task definition no ECS, CodeDeploy</li>
+<li><b>Migrações de banco</b> compatíveis com versões antiga e nova</li>
+<li><b>Smoke test e health check</b> depois do deploy</li></ul>
+<div class="c">- name: Deploy no ECS
+  uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+  with:
+    task-definition: task.json
+    service: api
+    cluster: prod
+    wait-for-service-stability: true
+- name: Smoke test
+  run: |
+    for i in $(seq 1 10); do
+      curl -fsS https://meu-app.com/health &amp;&amp; exit 0; sleep 6
+    done; exit 1</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.aws.amazon.com/pt_br/whitepapers/latest/overview-deployment-options/deployment-strategies.html"><span>AWS</span>Estratégias de deploy</a><a href="https://martinfowler.com/bliki/BlueGreenDeployment.html"><span>Artigo</span>Blue/green deployment</a><a href="https://martinfowler.com/bliki/CanaryRelease.html"><span>Artigo</span>Canary release</a></div></div>
+
+<div class="p"><span class="tg">5D. Deploy · Tópico 12</span><h2>Rollback, notificações e GitOps</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Rollback:</b> redeploy da tag anterior, rollback automático quando o smoke test falha</li>
+<li><b>Notificações:</b> Slack, Teams ou e-mail com status e link do run</li>
+<li><b>Observabilidade do pipeline:</b> duração, taxa de falha</li>
+<li><b>GitOps (visão geral):</b> o estado desejado no Git e um agente (Argo CD, Flux) sincroniza o cluster</li>
+<li><b>Push vs pull deploy</b></li></ul>
+<div class="c">- name: Rollback automático
+  if: failure()
+  run: ./deploy.sh prod "${{ vars.ULTIMA_TAG_ESTAVEL }}"
+- name: Notificar
+  if: always()
+  env: { WEBHOOK: "${{ secrets.SLACK_WEBHOOK }}" }
+  run: |
+    curl -s -X POST -H 'Content-type: application/json' \
+      --data "{\"text\":\"Deploy ${{ job.status }}: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+      "$WEBHOOK"</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://opengitops.dev/"><span>Padrão</span>OpenGitOps</a><a href="https://argo-cd.readthedocs.io/"><span>Ferramenta</span>Argo CD</a><a href="https://api.slack.com/messaging/webhooks"><span>Documentação</span>Webhooks do Slack</a></div></div>
+
+<div class="p"><span class="tg">DevSecOps</span><h2>Pipeline seguro</h2>
+<h3>O que estudar e aplicar</h3><ol>
+<li><b>SAST:</b> CodeQL ou Semgrep no código</li>
+<li><b>SCA:</b> Dependabot, Trivy fs, npm audit para dependências</li>
+<li><b>Secret scanning:</b> gitleaks e push protection do GitHub</li>
+<li><b>IaC scan:</b> Checkov ou Trivy config (módulo 6)</li>
+<li><b>Container scan:</b> Trivy na imagem, falhando em CRITICAL</li>
+<li><b>DAST:</b> OWASP ZAP baseline contra staging</li>
+<li><b>Cadeia de suprimentos:</b> actions fixadas por SHA, SBOM, assinatura com cosign, attestations</li>
+<li><b>Hardening:</b> permissions mínimas, cuidado com pull_request_target e injeção via títulos de PR</li>
+<li><b>OIDC</b> no lugar de chaves</li></ol>
+<div class="c">- uses: github/codeql-action/init@v3
+  with: { languages: python }
+- uses: github/codeql-action/analyze@v3
+- uses: gitleaks/gitleaks-action@v2
+- uses: aquasecurity/trivy-action@0.28.0
+  with:
+    image-ref: ghcr.io/voce/app:${{ github.sha }}
+    severity: CRITICAL,HIGH
+    exit-code: "1"
+- uses: zaproxy/action-baseline@v0.14.0
+  with: { target: "https://staging.meu-app.com" }</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://owasp.org/www-project-top-10-ci-cd-security-risks/"><span>OWASP</span>Top 10 riscos de CI/CD</a><a href="https://docs.github.com/pt/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions"><span>Documentação</span>Hardening do Actions</a><a href="https://slsa.dev/"><span>Padrão</span>SLSA: cadeia de suprimentos</a></div></div>
+
+<div class="p"><span class="tg">Projeto prático</span><h2>Pipeline completo da sua aplicação</h2>
+<ol><li>Aquecimento: este próprio app da trilha publicado no GitHub Pages via Actions</li><li><b>pr.yml:</b> lint, testes com PostgreSQL de serviço, CodeQL, gitleaks e Trivy fs</li><li><b>main.yml:</b> build com metadata-action, Trivy na imagem, push no GHCR ou ECR</li><li>Deploy em staging via OIDC, smoke test, aprovação e produção</li><li>Rollback automático e notificação em Slack ou e-mail</li><li>Branch main protegida exigindo os checks</li><li>Badge de status no README</li></ol>
+<h3>Projetos do roadmap.sh</h3><div class="lk"><a href="https://roadmap.sh/projects/github-actions-deployment-workflow"><span>Projeto</span>GitHub Pages Deployment</a><a href="https://roadmap.sh/projects"><span>Projetos</span>Projetos DevOps</a><a href="https://skills.github.com/"><span>Curso</span>GitHub Skills</a></div></div>
