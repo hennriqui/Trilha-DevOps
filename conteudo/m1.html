@@ -1,0 +1,312 @@
+<h1>Módulo 1: Linux, Redes e Git</h1>
+
+<div class="p p0"><span class="tg">Como usar</span><h2>Módulo 1: a base de tudo</h2>
+<p>Quase toda infraestrutura roda em Linux, conversa por rede e é versionada com Git. Este módulo cobre o essencial dos roadmaps de Linux e Network Engineer do roadmap.sh, com HTTP pela MDN e DNS e segurança de borda pela Cloudflare.</p>
+<ol><li>Abra os tópicos em ordem: cada um só libera depois que o anterior é concluído</li><li>Cada tópico tem uma lista "O que estudar": use como roteiro e só avance quando souber explicar cada item</li><li>Pratique tudo numa VM Ubuntu, no WSL ou numa instância na nuvem</li></ol>
+<h3>Roadmaps de referência</h3><div class="lk"><a href="https://roadmap.sh/linux"><span>Roadmap</span>Linux</a><a href="https://roadmap.sh/network-engineer"><span>Roadmap</span>Network Engineer</a><a href="https://roadmap.sh/git-github"><span>Roadmap</span>Git e GitHub</a></div></div>
+
+<div class="p"><span class="tg">1A. Linux · Tópico 1</span><h2>Terminal e navegação</h2>
+<p>O shell (Bash) interpreta seus comandos. Como DevOps você vai administrar servidores sem interface gráfica, então precisa se mover pelo sistema e achar ajuda sozinho.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Hierarquia de diretórios (FHS):</b> / raiz, /etc configurações, /var/log logs, /home usuários, /usr/bin programas, /tmp temporários, /proc e /sys informações do kernel</li>
+<li><b>Caminhos absolutos e relativos:</b> /etc/nginx vs ../config, os atalhos ~ . e ..</li>
+<li><b>Navegação e manipulação:</b> pwd, ls -lah, cd, mkdir -p, touch, cp -r, mv, rm -r, tree</li>
+<li><b>Buscar ajuda:</b> man, comando --help, tldr, apropos, type e which</li>
+<li><b>Produtividade:</b> Tab para completar, Ctrl+R para buscar no histórico, history, alias, variáveis como $PATH e $HOME, o arquivo ~/.bashrc</li></ul>
+<div class="c">man ls              # manual completo
+ls -lah /var/log    # detalhes, ocultos, tamanhos legíveis
+cd ~ ; cd - ; cd ..
+echo $PATH
+alias ll='ls -lah'  # adicione ao ~/.bashrc</div>
+<div class="k">Exercício: sem interface gráfica, encontre onde fica a configuração do SSH e quantos arquivos existem em /etc.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://linuxcommand.org/tlcl.php"><span>Livro grátis</span>The Linux Command Line</a><a href="https://linuxjourney.com/"><span>Curso</span>Linux Journey</a><a href="https://tldr.sh/"><span>Ferramenta</span>tldr: exemplos práticos de comandos</a></div></div>
+
+<div class="p"><span class="tg">1A. Linux · Tópico 2</span><h2>Arquivos e texto</h2>
+<p>No Linux, configurações, logs e saídas de comandos são texto. Ler, filtrar, editar e compactar texto é uma tarefa diária.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Ler arquivos:</b> cat, less, head, tail e tail -f para logs ao vivo</li>
+<li><b>Editores:</b> vim (modos normal, inserção e comando) e nano</li>
+<li><b>Processamento de texto:</b> grep, sort, uniq, cut, tr, wc, diff, tee</li>
+<li><b>Streams:</b> stdin, stdout e stderr, pipes |, redirecionamentos &gt;, &gt;&gt;, 2&gt;&amp;1</li>
+<li><b>Busca:</b> find por nome, tamanho e data; locate</li>
+<li><b>Links:</b> hard link vs link simbólico (ln -s)</li>
+<li><b>Compactação:</b> tar, gzip, zip</li></ul>
+<div class="c">tail -f /var/log/syslog
+grep -rin "error" /var/log/nginx/
+find /var/log -name "*.log" -mtime -1 -size +10M
+cut -d: -f1 /etc/passwd | sort
+tar -czf backup.tar.gz /etc/nginx
+ln -s /opt/app/v2 /opt/app/atual</div>
+<div class="k">Vim mínimo: i insere, Esc volta ao modo normal, /texto busca, dd apaga linha, :wq salva e sai, :q! sai sem salvar.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.openvim.com/"><span>Prática</span>OpenVim: tutorial interativo</a><a href="https://www.gnu.org/software/coreutils/manual/coreutils.html"><span>Documentação</span>Manual do GNU coreutils</a><a href="https://roadmap.sh/linux"><span>Roadmap</span>Text processing (roadmap Linux)</a></div></div>
+
+<div class="p"><span class="tg">1A. Linux · Tópico 3</span><h2>Usuários e permissões</h2>
+<p>Linux é multiusuário: cada arquivo e processo pertence a alguém. Errar permissões é uma das causas mais comuns de falhas e de brechas de segurança.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Usuários e grupos:</b> /etc/passwd, /etc/shadow, /etc/group, useradd, usermod -aG, passwd, id, groups</li>
+<li><b>sudo:</b> o arquivo sudoers, visudo e o grupo sudo ou wheel</li>
+<li><b>Permissões rwx:</b> dono, grupo e outros; notação octal (755, 644, 600) e simbólica (u+x, g-w)</li>
+<li><b>chmod, chown e chgrp</b>, inclusive -R</li>
+<li><b>umask:</b> permissão padrão de arquivos novos</li>
+<li><b>Permissões especiais:</b> setuid, setgid e sticky bit (por que /tmp tem o t)</li>
+<li><b>ACLs:</b> getfacl e setfacl para casos finos</li></ul>
+<div class="c">sudo useradd -m -s /bin/bash deploy
+sudo usermod -aG sudo deploy
+ls -l app.conf        # -rw-r----- 1 app app
+chmod 640 app.conf    # 6=rw 4=r 0=nada
+chmod u+x script.sh
+sudo chown -R app:app /srv/app
+umask                 # geralmente 0022</div>
+<div class="s">Menor privilégio: nunca chmod 777. Chaves e .env com 600, scripts com 750, e serviços com usuário próprio.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://wiki.archlinux.org/title/File_permissions_and_attributes"><span>Documentação</span>Permissões (ArchWiki)</a><a href="https://wiki.archlinux.org/title/Sudo"><span>Documentação</span>sudo (ArchWiki)</a><a href="https://chmod-calculator.com/"><span>Ferramenta</span>Calculadora de chmod</a></div></div>
+
+<div class="p"><span class="tg">1A. Linux · Tópico 4</span><h2>Processos e serviços</h2>
+<p>Todo programa em execução é um processo com PID, dono e consumo de recursos. Serviços de longa duração (Nginx, Docker, banco) são gerenciados pelo systemd.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Listar e monitorar:</b> ps aux, pstree, top, htop, uptime e load average</li>
+<li><b>Sinais:</b> SIGTERM (15) vs SIGKILL (9), SIGHUP para recarregar; kill, pkill, killall</li>
+<li><b>Primeiro e segundo plano:</b> &amp;, jobs, fg, bg, nohup, Ctrl+Z</li>
+<li><b>Prioridade:</b> nice e renice</li>
+<li><b>systemd:</b> units, systemctl start, stop, restart, reload, enable, status</li>
+<li><b>Criar seu próprio serviço</b> com um arquivo .service</li>
+<li><b>Logs:</b> journalctl -u, -f, --since</li>
+<li><b>Recursos:</b> free -h, vmstat, iostat, lsof</li></ul>
+<div class="c"># /etc/systemd/system/minha-api.service
+[Unit]
+Description=Minha API
+After=network.target
+[Service]
+User=app
+ExecStart=/opt/app/server
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now minha-api
+journalctl -u minha-api -f</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://wiki.archlinux.org/title/Systemd"><span>Documentação</span>systemd (ArchWiki)</a><a href="https://man7.org/linux/man-pages/man7/signal.7.html"><span>Manual</span>Sinais do Linux</a><a href="https://www.brendangregg.com/linuxperf.html"><span>Referência</span>Ferramentas de performance (Brendan Gregg)</a></div></div>
+
+<div class="p"><span class="tg">1A. Linux · Tópico 5</span><h2>Pacotes, discos e boot</h2>
+<p>Instalar software, cuidar do armazenamento e entender como o sistema liga fecha a base de administração Linux.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Gerenciadores de pacotes:</b> apt (Debian, Ubuntu), dnf (RHEL, Fedora), repositórios, chaves GPG, snap</li>
+<li><b>Discos:</b> lsblk, fdisk, df -h, du -sh, partições</li>
+<li><b>Sistemas de arquivos:</b> ext4, xfs, mkfs, mount, /etc/fstab, inodes</li>
+<li><b>Swap e LVM:</b> o que são e quando usar</li>
+<li><b>Processo de boot:</b> BIOS ou UEFI, GRUB, kernel, systemd e targets</li>
+<li><b>Troubleshooting:</b> dmesg, journalctl -b -p err, disco cheio, falta de memória (OOM killer)</li></ul>
+<div class="c">sudo apt update &amp;&amp; sudo apt upgrade -y
+apt search nginx ; apt show nginx
+lsblk ; df -h ; du -sh /var/* | sort -h
+sudo mkfs.ext4 /dev/xvdf
+sudo mount /dev/xvdf /dados
+dmesg | tail ; journalctl -b -p err</div>
+<div class="k">Disco cheio derruba bancos e aplicações. Verifique df -h e df -i (inodes) sempre que algo parar sem motivo aparente.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://wiki.archlinux.org/title/Arch_boot_process"><span>Documentação</span>Processo de boot (ArchWiki)</a><a href="https://wiki.archlinux.org/title/Fstab"><span>Documentação</span>fstab (ArchWiki)</a><a href="https://ubuntu.com/server/docs"><span>Documentação</span>Ubuntu Server</a></div></div>
+
+<div class="p"><span class="tg">1B. Redes · Tópico 6</span><h2>IP, sub-redes e roteamento</h2>
+<p>Antes de qualquer nuvem, entenda como os pacotes encontram o caminho. É isso que você vai desenhar ao criar uma VPC no módulo 4.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Modelos OSI (7 camadas) e TCP/IP (4 camadas):</b> o que acontece em cada uma</li>
+<li><b>MAC, ARP e switches</b> (camada 2) vs <b>IP e roteadores</b> (camada 3)</li>
+<li><b>IPv4 e IPv6:</b> formato, IP público vs privado (10/8, 172.16/12, 192.168/16)</li>
+<li><b>CIDR e subnetting:</b> calcular rede, broadcast e hosts de um /24, /26, /16</li>
+<li><b>Gateway e tabela de rotas</b>, rota padrão 0.0.0.0/0</li>
+<li><b>NAT:</b> como redes privadas saem para a internet</li>
+<li><b>DHCP:</b> distribuição automática de IPs</li>
+<li><b>VLANs e topologias</b> (conceito)</li></ul>
+<div class="c">ip a                 # interfaces e IPs
+ip route             # rotas e gateway
+ip neigh             # tabela ARP
+ping -c 4 8.8.8.8
+traceroute google.com
+ipcalc 10.0.1.0/26   # 64 endereços, 62 hosts</div>
+<div class="k">Treine subnetting até fazer de cabeça: /24=256, /25=128, /26=64, /27=32, /28=16 endereços.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.cloudflare.com/pt-br/learning/ddos/glossary/open-systems-interconnection-model-osi/"><span>Cloudflare</span>O modelo OSI</a><a href="https://www.cloudflare.com/pt-br/learning/network-layer/what-is-a-subnet/"><span>Cloudflare</span>O que é uma sub-rede</a><a href="https://roadmap.sh/network-engineer"><span>Roadmap</span>Network Engineer</a></div></div>
+
+<div class="p"><span class="tg">1B. Redes · Tópico 7</span><h2>DNS</h2>
+<p>O DNS traduz nomes em endereços. Quase todo deploy envolve criar ou mudar registros, e muitos incidentes começam aqui.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Resolução:</b> resolver recursivo, servidores raiz, TLD (.com, .br) e servidor autoritativo</li>
+<li><b>Registros:</b> A, AAAA, CNAME, MX, TXT, NS, SOA, CAA</li>
+<li><b>TTL e cache:</b> por que mudanças demoram a propagar</li>
+<li><b>Resolução local:</b> /etc/hosts e /etc/resolv.conf</li>
+<li><b>Registrar vs provedor de DNS:</b> onde se compra o domínio e onde ficam os registros</li>
+<li><b>Cloudflare DNS:</b> registros com proxy (nuvem laranja) escondem o IP de origem; DNS only não</li>
+<li><b>DNSSEC</b> e registros de e-mail SPF, DKIM e DMARC</li></ul>
+<div class="c">dig exemplo.com +short
+dig exemplo.com MX
+dig +trace exemplo.com      # caminho completo
+dig @1.1.1.1 exemplo.com    # perguntar a um resolver
+nslookup exemplo.com</div>
+<div class="s">Cuidado com subdomain takeover: CNAME apontando para um serviço que você já desligou pode ser assumido por terceiros.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.cloudflare.com/pt-br/learning/dns/what-is-dns/"><span>Cloudflare</span>O que é DNS</a><a href="https://www.cloudflare.com/pt-br/learning/dns/dns-records/"><span>Cloudflare</span>Tipos de registros DNS</a><a href="https://developers.cloudflare.com/dns/"><span>Documentação</span>Cloudflare DNS</a></div></div>
+
+<div class="p"><span class="tg">1B. Redes · Tópico 8</span><h2>HTTP, HTTPS e TLS</h2>
+<p>HTTP é a língua da web e das APIs. Você vai depurar status codes, headers e certificados o tempo todo.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Requisição e resposta:</b> método, URL, headers, corpo (MDN)</li>
+<li><b>Métodos:</b> GET, POST, PUT, PATCH, DELETE e idempotência</li>
+<li><b>Status codes:</b> 2xx, 3xx (301, 302, 304), 4xx (400, 401, 403, 404, 429), 5xx (500, 502, 503, 504)</li>
+<li><b>Headers importantes:</b> Host, Content-Type, Authorization, Cache-Control, Set-Cookie</li>
+<li><b>Cookies, cache e CORS</b></li>
+<li><b>TLS:</b> handshake, certificados, cadeia de confiança, Let's Encrypt</li>
+<li><b>Modos SSL da Cloudflare:</b> Flexible, Full e Full (strict), e por que usar strict</li>
+<li><b>HTTP/1.1, HTTP/2 e HTTP/3</b> (diferenças principais)</li></ul>
+<div class="c">curl -I https://exemplo.com          # só headers
+curl -v https://exemplo.com          # TLS e headers
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"nome":"ramon"}' https://api.exemplo.com
+openssl s_client -connect exemplo.com:443 \
+  -servername exemplo.com | openssl x509 -noout -dates</div>
+<div class="k">502 e 504 geralmente indicam problema entre o proxy e a aplicação, não no navegador do usuário.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Overview"><span>MDN</span>Visão geral do HTTP</a><a href="https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Status"><span>MDN</span>Códigos de status</a><a href="https://www.cloudflare.com/pt-br/learning/ssl/what-happens-in-a-tls-handshake/"><span>Cloudflare</span>Como funciona o handshake TLS</a></div></div>
+
+<div class="p"><span class="tg">1B. Redes · Tópico 9</span><h2>Portas, firewall e proxies</h2>
+<p>Portas identificam serviços. Firewalls decidem quem chega a elas. Proxies e load balancers distribuem e protegem o tráfego.</p>
+<h3>O que estudar</h3><ul>
+<li><b>TCP vs UDP:</b> three-way handshake, confiabilidade e quando usar cada um</li>
+<li><b>Portas comuns:</b> 22, 53, 80, 443, 3306, 5432, 6379, 8080</li>
+<li><b>Diagnóstico:</b> ss -tulpn, nc, telnet, tcpdump</li>
+<li><b>Firewall no host:</b> ufw, iptables e nftables, política padrão de negar</li>
+<li><b>Proxy reverso:</b> Nginx na frente da aplicação</li>
+<li><b>Load balancer:</b> camada 4 vs camada 7, health checks</li>
+<li><b>CDN e WAF:</b> como a Cloudflare faz cache na borda e bloqueia ataques e DDoS</li></ul>
+<div class="c">ss -tulpn                  # quem escuta em qual porta
+nc -zv db.interno 5432     # a porta está acessível?
+sudo tcpdump -i any port 443 -c 20
+sudo ufw default deny incoming
+sudo ufw allow 22/tcp &amp;&amp; sudo ufw allow 80,443/tcp
+sudo ufw enable &amp;&amp; sudo ufw status verbose</div>
+<div class="k">App roda mas não responde de fora? Confira: escuta em 0.0.0.0 ou só 127.0.0.1? O firewall libera? O Security Group libera?</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.cloudflare.com/pt-br/learning/cdn/glossary/reverse-proxy/"><span>Cloudflare</span>O que é proxy reverso</a><a href="https://www.cloudflare.com/pt-br/learning/performance/what-is-load-balancing/"><span>Cloudflare</span>O que é balanceamento de carga</a><a href="https://wiki.archlinux.org/title/Uncomplicated_Firewall"><span>Documentação</span>UFW (ArchWiki)</a></div></div>
+
+<div class="p"><span class="tg">1B. Redes · Tópico 10</span><h2>SSH e acesso remoto</h2>
+<p>SSH é como você entra em servidores, copia arquivos e cria túneis seguros. Também vale conhecer as alternativas modernas ao SSH exposto.</p>
+<h3>O que estudar</h3><ul>
+<li><b>Chaves:</b> ssh-keygen (ed25519), ssh-copy-id, authorized_keys, ssh-agent</li>
+<li><b>Arquivo ~/.ssh/config:</b> apelidos, usuário, chave e porta por host</li>
+<li><b>Cópia de arquivos:</b> scp e rsync</li>
+<li><b>Túneis:</b> port forwarding -L e -R</li>
+<li><b>Bastion ou jump host:</b> ssh -J</li>
+<li><b>Hardening do sshd_config</b> e fail2ban</li>
+<li><b>VPN:</b> conceito e WireGuard</li>
+<li><b>Zero Trust:</b> Cloudflare Tunnel e AWS Session Manager, acesso sem abrir a porta 22</li></ul>
+<div class="c">ssh-keygen -t ed25519 -C "ramon@notebook"
+ssh-copy-id deploy@203.0.113.10
+rsync -avz ./site/ web:/var/www/site/
+ssh -L 5432:db.interno:5432 bastion   # túnel para o banco
+ssh -J bastion deploy@10.0.11.5
+
+# ~/.ssh/config
+Host web
+  HostName 203.0.113.10
+  User deploy</div>
+<div class="s">No /etc/ssh/sshd_config: PermitRootLogin no e PasswordAuthentication no. Reinicie com systemctl restart ssh sem fechar a sessão atual.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.ssh.com/academy/ssh/tunneling"><span>Guia</span>Túneis SSH (SSH Academy)</a><a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/"><span>Cloudflare</span>Cloudflare Tunnel</a><a href="https://www.wireguard.com/quickstart/"><span>Documentação</span>WireGuard quickstart</a></div></div>
+
+<div class="p"><span class="tg">1C. Git · Tópico 11</span><h2>Conceitos do Git</h2>
+<p>Git é um controle de versão distribuído: cada cópia tem o histórico inteiro. Em DevOps, código, infraestrutura e pipelines vivem no Git.</p>
+<h3>O que estudar</h3><ul>
+<li><b>As três áreas:</b> diretório de trabalho, staging (index) e repositório</li>
+<li><b>Commit:</b> snapshot identificado por hash SHA, com autor e mensagem</li>
+<li><b>HEAD, branch e tag</b>: ponteiros para commits</li>
+<li><b>Configuração:</b> git config global e por repositório</li>
+<li><b>Local vs remoto</b> (origin)</li></ul>
+<div class="c">git config --global user.name "Ramon Saldana"
+git config --global user.email "voce@email.com"
+git config --global init.defaultBranch main
+git init meu-projeto &amp;&amp; cd meu-projeto
+git status</div>
+<div class="k">Visualize: o Learn Git Branching mostra graficamente o que cada comando faz com os commits.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://git-scm.com/book/pt-br/v2"><span>Livro</span>Pro Git em português</a><a href="https://learngitbranching.js.org/?locale=pt_BR"><span>Prática</span>Learn Git Branching</a><a href="https://roadmap.sh/git-github"><span>Roadmap</span>Git e GitHub</a></div></div>
+
+<div class="p"><span class="tg">1C. Git · Tópico 12</span><h2>Comandos do dia a dia</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Ciclo básico:</b> add, commit, status, diff, log</li>
+<li><b>Desfazer com segurança:</b> restore, revert, reset (soft, mixed, hard) e a diferença entre eles</li>
+<li><b>Guardar trabalho temporário:</b> stash</li>
+<li><b>Investigar:</b> blame, show, log --graph, reflog para recuperar commits "perdidos"</li>
+<li><b>.gitignore</b> e o que nunca entra no repositório</li></ul>
+<div class="c">git add -p                    # adicionar por partes
+git commit -m "feat: endpoint de health"
+git log --oneline --graph --all
+git diff --staged
+git restore arquivo           # descarta mudança local
+git revert a1b2c3d            # desfaz criando novo commit
+git stash ; git stash pop
+git reflog                    # salva-vidas</div>
+<div class="k">Em branches compartilhadas use revert, não reset --hard: reset reescreve histórico que outras pessoas já têm.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://git-scm.com/docs"><span>Documentação</span>Referência oficial do Git</a><a href="https://ohshitgit.com/pt_BR"><span>Guia</span>Oh Shit, Git: como sair de enrascadas</a><a href="https://education.github.com/git-cheat-sheet-education.pdf"><span>Cola</span>Git cheat sheet</a></div></div>
+
+<div class="p"><span class="tg">1C. Git · Tópico 13</span><h2>Branches, merge e rebase</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Criar e trocar branches:</b> switch -c, branch -d</li>
+<li><b>Merge:</b> fast-forward vs merge commit</li>
+<li><b>Rebase:</b> histórico linear, rebase -i para organizar commits</li>
+<li><b>Conflitos:</b> como ler os marcadores e resolver</li>
+<li><b>cherry-pick:</b> levar um commit específico para outra branch</li>
+<li><b>Tags:</b> versionamento semântico (v1.2.3)</li></ul>
+<div class="c">git switch -c feature/login
+git switch main &amp;&amp; git merge feature/login
+git rebase main               # na feature
+git rebase -i HEAD~3          # juntar ou editar commits
+# conflito: edite entre &lt;&lt;&lt;&lt;&lt;&lt;&lt; ======= &gt;&gt;&gt;&gt;&gt;&gt;&gt;
+git add . &amp;&amp; git rebase --continue
+git tag -a v1.0.0 -m "primeira versão"</div>
+<div class="k">Regra de ouro: não faça rebase de commits que já foram enviados e que outras pessoas usam.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://git-scm.com/book/pt-br/v2/Branches-no-Git-Branches-em-poucas-palavras"><span>Livro</span>Pro Git: branches</a><a href="https://semver.org/lang/pt-BR/"><span>Padrão</span>Versionamento semântico</a><a href="https://learngitbranching.js.org/?locale=pt_BR"><span>Prática</span>Exercícios de rebase</a></div></div>
+
+<div class="p"><span class="tg">1C. Git · Tópico 14</span><h2>GitHub e Pull Request</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Remotos:</b> remote add, push -u, fetch vs pull</li>
+<li><b>Autenticação:</b> chave SSH ou token, nunca senha</li>
+<li><b>Pull Request:</b> descrição, revisão, comentários, aprovação</li>
+<li><b>Branch protection:</b> PR obrigatório, revisão e checks verdes</li>
+<li><b>Fork e contribuição</b> em projetos open source</li>
+<li><b>Issues, Projects e GitHub CLI (gh)</b></li></ul>
+<div class="c">git remote add origin git@github.com:voce/projeto.git
+git push -u origin main
+git push origin feature/login
+gh pr create --fill
+gh pr checkout 12 ; gh pr merge --squash</div>
+<div class="k">No módulo 5, abrir um PR vai disparar testes e varreduras de segurança automaticamente.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.github.com/pt/pull-requests"><span>Documentação</span>Pull Requests</a><a href="https://docs.github.com/pt/authentication/connecting-to-github-with-ssh"><span>Documentação</span>GitHub com SSH</a><a href="https://skills.github.com/"><span>Curso</span>GitHub Skills</a></div></div>
+
+<div class="p"><span class="tg">1C. Git · Tópico 15</span><h2>Fluxos e boas práticas</h2>
+<h3>O que estudar</h3><ul>
+<li><b>Trunk-based development:</b> branches curtas e merge frequente na main (o mais usado em CI/CD)</li>
+<li><b>GitFlow:</b> develop, release e hotfix, e por que caiu em desuso</li>
+<li><b>Conventional Commits:</b> feat, fix, docs, chore, refactor</li>
+<li><b>Commits pequenos</b> e PRs fáceis de revisar</li>
+<li><b>Hooks:</b> pre-commit para lint e verificação de segredos</li>
+<li><b>README e CHANGELOG</b></li></ul>
+<div class="c"># .gitignore
+.env
+*.pem
+node_modules/
+.terraform/
+*.tfstate*
+
+pip install pre-commit &amp;&amp; pre-commit install</div>
+<div class="s">Segredo vazou num commit? Apagar o commit não basta: revogue a chave, gere outra e só depois limpe o histórico.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://trunkbaseddevelopment.com/"><span>Guia</span>Trunk Based Development</a><a href="https://www.conventionalcommits.org/pt-br/v1.0.0/"><span>Padrão</span>Conventional Commits</a><a href="https://pre-commit.com/"><span>Ferramenta</span>pre-commit</a></div></div>
+
+<div class="p"><span class="tg">DevSecOps</span><h2>Hardening e segurança da base</h2>
+<p>Segurança começa no primeiro servidor e no primeiro commit (shift-left).</p>
+<h3>O que estudar e aplicar</h3><ol>
+<li>Usuário próprio com sudo, sem uso diário do root</li>
+<li>SSH só por chave, sem root e sem senha, com fail2ban</li>
+<li>Firewall negando tudo e liberando só 22, 80 e 443</li>
+<li>Atualizações automáticas de segurança (unattended-upgrades)</li>
+<li>Serviços com usuário dedicado e permissões mínimas</li>
+<li>HTTPS com Full (strict) e IP de origem escondido atrás de proxy</li>
+<li>Segredos fora do Git com gitleaks e pre-commit</li>
+<li>main protegida e commits assinados</li>
+<li>Auditoria: last, journalctl, /var/log/auth.log</li></ol>
+<h3>Para estudar</h3><div class="lk"><a href="https://www.cisecurity.org/cis-benchmarks"><span>Padrão</span>CIS Benchmarks</a><a href="https://github.com/gitleaks/gitleaks"><span>Ferramenta</span>gitleaks</a><a href="https://roadmap.sh/devsecops"><span>Roadmap</span>DevSecOps</a></div></div>
+
+<div class="p"><span class="tg">Projeto prático</span><h2>Servidor web seguro com domínio</h2>
+<ol><li>Crie uma VM Ubuntu (local ou na nuvem)</li><li>Usuário deploy, SSH só por chave e fail2ban</li><li>ufw ativo e atualizações automáticas</li><li>Nginx servindo um site estático, rodando como serviço</li><li>Domínio com registro A, testado com dig</li><li>HTTPS com Let's Encrypt ou Cloudflare em Full (strict)</li><li>Configurações versionadas num repositório com README</li></ol>
+<h3>Projetos do roadmap.sh</h3><div class="lk"><a href="https://roadmap.sh/projects/ssh-remote-server-setup"><span>Projeto</span>SSH Remote Server Setup</a><a href="https://roadmap.sh/projects/static-site-server"><span>Projeto</span>Static Site Server</a><a href="https://roadmap.sh/projects/basic-dns"><span>Projeto</span>Basic DNS Setup</a></div></div>
