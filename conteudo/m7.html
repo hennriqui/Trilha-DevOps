@@ -1,0 +1,199 @@
+<h1>Módulo 7: Projeto Final</h1>
+
+<div class="p p0"><span class="tg">Como usar</span><h2>Projeto final de ponta a ponta</h2>
+<p>Aqui você junta tudo: aplicação em containers, publicada na AWS com Terraform, protegida na borda pela Cloudflare, com deploy automático e seguro pelo GitHub Actions e monitorada no CloudWatch.</p>
+<div class="c">usuário → Cloudflare (DNS, WAF, TLS) → ALB (HTTPS, subnet pública)
+  → ECS Fargate ou EC2 (subnet privada) → RDS PostgreSQL (subnet de dados)
+dev → PR (testes + scans + terraform plan) → merge
+  → build + Trivy → ECR → deploy via OIDC → smoke test
+  → CloudWatch Logs + métricas + alarmes → SNS</div>
+<div class="k">Faça cada etapa num Pull Request separado. O histórico do repositório vira a história do projeto para recrutadores.</div>
+<h3>Referências gerais</h3><div class="lk"><a href="https://roadmap.sh/devops?r=devops-beginner"><span>Roadmap</span>DevOps para iniciantes</a><a href="https://roadmap.sh/devsecops"><span>Roadmap</span>DevSecOps</a><a href="https://roadmap.sh/projects"><span>Projetos</span>Projetos DevOps</a></div></div>
+
+<div class="p"><span class="tg">Etapa 1. Aplicação · Tarefa 1</span><h2>Aplicação e requisitos</h2>
+<p>Escolha algo pequeno para que o foco fique na operação: uma API de tarefas, encurtador de links ou catálogo, com banco PostgreSQL.</p>
+<h3>O que entregar</h3><ul>
+<li><b>Endpoints:</b> CRUD básico, GET /health (liveness) e GET /ready (verifica o banco)</li>
+<li><b>Configuração por variáveis de ambiente</b> (12 Factor)</li>
+<li><b>Logs estruturados em JSON</b> com nível, mensagem, caminho e tempo de resposta</li>
+<li><b>Graceful shutdown</b> ao receber SIGTERM</li>
+<li><b>Migrações de banco</b> versionadas</li>
+<li><b>Requisitos não funcionais escritos:</b> disponibilidade alvo, latência, custo máximo mensal</li></ul>
+<h3>Para estudar</h3><div class="lk"><a href="https://12factor.net/pt_br/"><span>Guia</span>The Twelve-Factor App</a><a href="https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Methods"><span>MDN</span>Métodos HTTP</a><a href="https://fastapi.tiangolo.com/pt/"><span>Framework</span>FastAPI</a></div></div>
+
+<div class="p"><span class="tg">Etapa 1. Aplicação · Tarefa 2</span><h2>Repositório e testes</h2>
+<div class="c">projeto/
+├─ app/                   código, testes e migrações
+├─ infra/modules/         network, app, data
+├─ infra/envs/{dev,prod}/
+├─ .github/workflows/     pr.yml, main.yml
+├─ Dockerfile  compose.yaml  .dockerignore
+├─ .pre-commit-config.yaml
+└─ README.md  docs/arquitetura.png</div>
+<h3>O que entregar</h3><ul>
+<li>Testes unitários e de integração rodando com um comando</li>
+<li>Branch main protegida: PR, revisão e checks obrigatórios</li>
+<li>Dependabot para dependências, actions e imagens Docker</li>
+<li>pre-commit com formatação, lint e gitleaks</li>
+<li>Conventional Commits e tags semânticas</li></ul>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.github.com/pt/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file"><span>Documentação</span>Configurar o Dependabot</a><a href="https://pre-commit.com/"><span>Ferramenta</span>pre-commit</a><a href="https://www.makeareadme.com/"><span>Guia</span>Como escrever um README</a></div></div>
+
+<div class="p"><span class="tg">Etapa 2. Containers · Tarefa 3</span><h2>Dockerfile de produção</h2>
+<h3>Critérios</h3><ul>
+<li>Multi-stage, imagem final slim ou distroless com tag fixa</li>
+<li>Usuário não root e forma exec no CMD</li>
+<li>HEALTHCHECK no /health</li>
+<li>.dockerignore excluindo .git, .env, testes e infra</li>
+<li>Imagem final abaixo de 150 MB</li>
+<li>Build multiplataforma (amd64 e arm64) para usar Graviton se quiser</li></ul>
+<div class="c">docker buildx build --platform linux/amd64,linux/arm64 -t app:dev .
+docker run --rm -p 8000:8000 --read-only --tmpfs /tmp app:dev
+curl -f localhost:8000/health
+hadolint Dockerfile
+docker image ls app:dev</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.docker.com/build/building/best-practices/"><span>Docker</span>Boas práticas de build</a><a href="https://github.com/GoogleContainerTools/distroless"><span>Imagens</span>Distroless</a><a href="https://github.com/hadolint/hadolint"><span>Ferramenta</span>hadolint</a></div></div>
+
+<div class="p"><span class="tg">Etapa 2. Containers · Tarefa 4</span><h2>Compose local e scans</h2>
+<h3>Critérios</h3><ul>
+<li>compose.yaml com proxy, API, PostgreSQL e serviço de migração</li>
+<li>Redes separadas, banco sem porta publicada</li>
+<li>Healthchecks e depends_on com condition</li>
+<li>Senha via secrets, nada sensível versionado</li>
+<li>Trivy sem CRITICAL e SBOM gerado</li>
+<li>Qualquer pessoa sobe tudo com docker compose up</li></ul>
+<div class="c">docker compose up -d --build &amp;&amp; docker compose ps
+trivy image --severity HIGH,CRITICAL --exit-code 1 app:dev
+trivy image --format cyclonedx -o sbom.json app:dev
+trivy fs --scanners vuln,secret .</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.docker.com/compose/"><span>Docker</span>Compose</a><a href="https://trivy.dev/"><span>Ferramenta</span>Trivy</a><a href="https://cyclonedx.org/"><span>Padrão</span>CycloneDX (SBOM)</a></div></div>
+
+<div class="p"><span class="tg">Etapa 3. Infra com Terraform · Tarefa 5</span><h2>Rede e borda</h2>
+<h3>Critérios</h3><ul>
+<li><b>Módulo network:</b> VPC /16, subnets públicas, privadas e de dados em 2 AZs, IGW, rotas, NAT (ou VPC endpoints para economizar)</li>
+<li><b>Security Groups em camadas:</b> ALB 443 da internet, app só do ALB, banco só da app</li>
+<li><b>ALB</b> com certificado do ACM e redirecionamento de 80 para 443</li>
+<li><b>Cloudflare (opcional):</b> registro DNS com proxy, SSL Full (strict), WAF gerenciado, SG do ALB aceitando só IPs da Cloudflare</li>
+<li><b>Flow logs</b> da VPC ligados</li></ul>
+<div class="s">Sem porta 22 aberta em lugar nenhum. Acesso administrativo só por Session Manager.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/latest"><span>Módulo</span>terraform-aws-modules/vpc</a><a href="https://registry.terraform.io/modules/terraform-aws-modules/alb/aws/latest"><span>Módulo</span>terraform-aws-modules/alb</a><a href="https://developers.cloudflare.com/ssl/origin-configuration/ssl-modes/full-strict/"><span>Cloudflare</span>SSL Full (strict)</a></div></div>
+
+<div class="p"><span class="tg">Etapa 3. Infra com Terraform · Tarefa 6</span><h2>Computação, dados e registry</h2>
+<h3>Critérios</h3><ul>
+<li><b>ECR</b> com scan on push, tags imutáveis e lifecycle policy</li>
+<li><b>Computação:</b> ECS Fargate (recomendado) com 2 tarefas em AZs diferentes, ou EC2 em Auto Scaling Group na subnet privada</li>
+<li><b>Task role e execution role</b> com permissões mínimas</li>
+<li><b>RDS PostgreSQL</b> criptografado, backups automáticos, sem acesso público</li>
+<li><b>Senha</b> gerada com random_password, guardada no Secrets Manager e injetada como secret na task</li>
+<li><b>Outputs:</b> URL da aplicação, endpoint do banco, nome do repositório ECR</li></ul>
+<div class="c">cd infra/envs/prod
+terraform init &amp;&amp; terraform plan -out=tfplan
+terraform apply tfplan
+terraform output -raw app_url</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://registry.terraform.io/modules/terraform-aws-modules/ecs/aws/latest"><span>Módulo</span>terraform-aws-modules/ecs</a><a href="https://registry.terraform.io/modules/terraform-aws-modules/rds/aws/latest"><span>Módulo</span>terraform-aws-modules/rds</a><a href="https://docs.aws.amazon.com/pt_br/AmazonECS/latest/developerguide/secrets-envvar-secrets-manager.html"><span>AWS</span>Secrets no ECS</a></div></div>
+
+<div class="p"><span class="tg">Etapa 3. Infra com Terraform · Tarefa 7</span><h2>State, módulos e scans</h2>
+<h3>Critérios</h3><ul>
+<li>Bootstrap separado para o bucket do state</li>
+<li>State remoto criptografado, versionado e com lock</li>
+<li>Ambientes dev e prod com states separados</li>
+<li>Módulos documentados com terraform-docs</li>
+<li>Checkov e Trivy config sem falhas HIGH (exceções justificadas no código)</li>
+<li>terraform test validando a rede</li>
+<li>Estimativa de custo com Infracost no README</li></ul>
+<div class="c">checkov -d infra/ --compact
+trivy config --severity HIGH,CRITICAL infra/
+terraform test
+infracost breakdown --path infra/envs/prod</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://developer.hashicorp.com/terraform/language/backend/s3"><span>Documentação</span>Backend S3</a><a href="https://www.checkov.io/"><span>Ferramenta</span>Checkov</a><a href="https://www.infracost.io/docs/"><span>Ferramenta</span>Infracost</a></div></div>
+
+<div class="p"><span class="tg">Etapa 4. CI/CD · Tarefa 8</span><h2>Pipeline de PR</h2>
+<p>pr.yml em pull_request. Tudo precisa passar para liberar o merge.</p>
+<h3>Critérios</h3><ol>
+<li>Lint e testes com PostgreSQL como service container</li>
+<li>CodeQL ou Semgrep (SAST)</li>
+<li>gitleaks (segredos) e Trivy fs (dependências)</li>
+<li>hadolint no Dockerfile</li>
+<li>terraform fmt -check, validate, tflint, Checkov e plan publicado como comentário</li>
+<li>permissions mínimas e actions fixadas por versão ou SHA</li>
+<li>concurrency cancelando execuções antigas</li></ol>
+<h3>Para estudar</h3><div class="lk"><a href="https://semgrep.dev/docs/"><span>Ferramenta</span>Semgrep</a><a href="https://github.com/gitleaks/gitleaks-action"><span>Action</span>gitleaks-action</a><a href="https://developer.hashicorp.com/terraform/tutorials/automation/github-actions"><span>Tutorial</span>Terraform no Actions</a></div></div>
+
+<div class="p"><span class="tg">Etapa 4. CI/CD · Tarefa 9</span><h2>Build e publicação</h2>
+<p>main.yml no push para main.</p>
+<h3>Critérios</h3><ul>
+<li>Credenciais AWS via OIDC (role só com push no ECR)</li>
+<li>Tags com metadata-action: SHA do commit e versão semântica nas releases</li>
+<li>Cache de camadas type=gha</li>
+<li>Trivy na imagem bloqueando CRITICAL antes do push</li>
+<li>SBOM anexado ao run e, opcional, assinatura com cosign</li></ul>
+<div class="c">- uses: aws-actions/configure-aws-credentials@v4
+  with: { role-to-assume: "${{ vars.ROLE_BUILD }}", aws-region: us-east-1 }
+- uses: aws-actions/amazon-ecr-login@v2
+- uses: docker/build-push-action@v6
+  with:
+    push: true
+    tags: ${{ vars.ECR_REPO }}:${{ github.sha }}
+    cache-from: type=gha
+    cache-to: type=gha,mode=max</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://github.com/aws-actions/amazon-ecr-login"><span>Action</span>amazon-ecr-login</a><a href="https://github.com/aquasecurity/trivy-action"><span>Action</span>trivy-action</a><a href="https://docs.sigstore.dev/cosign/signing/overview/"><span>Ferramenta</span>cosign</a></div></div>
+
+<div class="p"><span class="tg">Etapa 4. CI/CD · Tarefa 10</span><h2>Deploy seguro</h2>
+<h3>Critérios</h3><ol>
+<li>OIDC provider e roles criados pelo Terraform, trust policy restrita ao repositório e ao environment</li>
+<li>Deploy automático em dev; produção com environment protegido e aprovação</li>
+<li>Rolling update no ECS com wait-for-service-stability</li>
+<li>Migrações rodando antes da nova versão</li>
+<li>Smoke test no /health e /ready com retentativas</li>
+<li>Rollback automático para a tag anterior se falhar</li>
+<li>Notificação do resultado com link do run</li>
+<li>Opcional: OWASP ZAP baseline contra dev</li></ol>
+<div class="s">Critério de aceite: nenhuma access key da AWS guardada em secrets do GitHub.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.github.com/pt/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services"><span>Documentação</span>OIDC com AWS</a><a href="https://github.com/aws-actions/amazon-ecs-deploy-task-definition"><span>Action</span>Deploy no ECS</a><a href="https://github.com/zaproxy/action-baseline"><span>Action</span>ZAP baseline</a></div></div>
+
+<div class="p"><span class="tg">Etapa 5. Observabilidade · Tarefa 11</span><h2>Logs centralizados</h2>
+<h3>Critérios</h3><ul>
+<li>Driver awslogs na task do ECS (ou CloudWatch Agent na EC2)</li>
+<li>Log group por serviço com retenção definida, criado no Terraform</li>
+<li>Logs em JSON com request id para rastrear uma requisição</li>
+<li>Consultas salvas no Logs Insights: erros por rota, latência p95</li>
+<li>Logs do ALB enviados ao S3</li>
+<li>CloudTrail ativo para auditoria da conta</li></ul>
+<div class="c">fields @timestamp, level, path, duration_ms
+| filter level = "error"
+| stats count() as erros by path
+| sort erros desc
+
+stats pct(duration_ms, 95) as p95 by bin(5m)</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://docs.aws.amazon.com/pt_br/AmazonECS/latest/developerguide/using_awslogs.html"><span>AWS</span>awslogs no ECS</a><a href="https://docs.aws.amazon.com/pt_br/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html"><span>AWS</span>Logs Insights</a><a href="https://docs.aws.amazon.com/pt_br/elasticloadbalancing/latest/application/load-balancer-access-logs.html"><span>AWS</span>Logs do ALB</a></div></div>
+
+<div class="p"><span class="tg">Etapa 5. Observabilidade · Tarefa 12</span><h2>Métricas, alarmes e SLOs</h2>
+<h3>Critérios</h3><ul>
+<li><b>SLO definido:</b> por exemplo 99,5% das requisições com sucesso e p95 abaixo de 300 ms</li>
+<li><b>Alarmes (os 4 sinais de ouro):</b> 5xx no ALB, latência p95, CPU e memória das tarefas, hosts não saudáveis no target group</li>
+<li><b>Metric filter</b> contando erros nos logs</li>
+<li><b>Banco:</b> CPU, conexões e espaço livre do RDS</li>
+<li><b>Custos:</b> alarme de orçamento no Budgets</li>
+<li><b>Notificação</b> via SNS por e-mail ou Slack</li>
+<li><b>Dashboard</b> no CloudWatch, tudo criado pelo Terraform</li></ul>
+<div class="k">Alarme bom é acionável: se dispara, alguém precisa fazer algo. Evite alarmes que todo mundo aprende a ignorar.</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://sre.google/sre-book/service-level-objectives/"><span>Google SRE</span>Service Level Objectives</a><a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_metric_alarm"><span>Referência</span>aws_cloudwatch_metric_alarm</a><a href="https://docs.aws.amazon.com/pt_br/AmazonCloudWatch/latest/monitoring/CloudWatch_Dashboards.html"><span>AWS</span>Dashboards</a></div></div>
+
+<div class="p"><span class="tg">Etapa 5. Observabilidade · Tarefa 13</span><h2>Teste de falhas</h2>
+<p>Prove que a operação funciona quebrando coisas de propósito, em dev.</p>
+<h3>Cenários</h3><ol>
+<li>Pare uma tarefa: o ECS repõe e o tráfego continua na outra AZ?</li>
+<li>Gere carga: o alarme de CPU dispara? O auto scaling reage?</li>
+<li>Force erros 500: o alarme de 5xx e o metric filter funcionam?</li>
+<li>Faça deploy de uma versão quebrada: o smoke test barra e o rollback acontece?</li>
+<li>Restaure o banco a partir de um snapshot</li>
+<li>Escreva um postmortem curto de um dos cenários</li></ol>
+<div class="c">aws ecs stop-task --cluster dev --task TASK_ID
+hey -z 5m -c 50 https://dev.meu-app.com/   # gerador de carga
+aws rds restore-db-instance-from-db-snapshot ...</div>
+<h3>Para estudar</h3><div class="lk"><a href="https://principlesofchaos.org/pt-br/"><span>Artigo</span>Princípios de Chaos Engineering</a><a href="https://aws.amazon.com/pt/fis/"><span>AWS</span>Fault Injection Service</a><a href="https://sre.google/sre-book/postmortem-culture/"><span>Google SRE</span>Cultura de postmortem</a></div></div>
+
+<div class="p"><span class="tg">Entrega</span><h2>Documentação e entrega</h2>
+<h3>README deve ter</h3><ul><li>Diagrama de arquitetura</li><li>Como rodar localmente e como fazer deploy</li><li>Explicação do pipeline e de cada verificação de segurança</li><li>SLOs, alarmes e o que fazer quando cada um dispara (runbook)</li><li>Custo mensal estimado</li><li>Decisões técnicas e lições aprendidas</li></ul>
+<h3>Critérios de conclusão</h3><ol><li>Infra criada do zero com terraform apply</li><li>Commit na main chega à produção sem passos manuais</li><li>Pipeline bloqueia vulnerabilidade crítica e segredo vazado</li><li>Nenhuma credencial fixa no repositório ou no GitHub</li><li>Alarmes testados e postmortem escrito</li><li>terraform destroy ao final</li></ol>
+<h3>Próximos passos</h3><div class="lk"><a href="https://roadmap.sh/kubernetes"><span>Roadmap</span>Kubernetes</a><a href="https://prometheus.io/docs/introduction/overview/"><span>Ferramenta</span>Prometheus e Grafana</a><a href="https://argo-cd.readthedocs.io/"><span>Ferramenta</span>GitOps com Argo CD</a></div>
+<div class="k">Trilha concluída. Publique o projeto, compartilhe no LinkedIn e siga para Kubernetes.</div></div>
